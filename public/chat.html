@@ -49,6 +49,15 @@ body {
   font-size: 22px;
 }
 
+/* ⋯ кнопка */
+.menu-btn {
+  position: absolute;
+  right: 15px;
+  top: 18px;
+  font-size: 22px;
+  cursor: pointer;
+}
+
 /* чат */
 #chat {
   flex: 1;
@@ -58,7 +67,7 @@ body {
   flex-direction: column;
 }
 
-/* строки */
+/* сообщения */
 .row {
   display: flex;
   align-items: flex-end;
@@ -68,7 +77,6 @@ body {
 .bot-row { justify-content: flex-start; }
 .user-row { justify-content: flex-end; }
 
-/* аватар */
 .avatar {
   width: 36px;
   height: 36px;
@@ -77,15 +85,14 @@ body {
   margin: 0 8px;
 }
 
-/* пузырь */
 .bubble {
   max-width: 75%;
   padding: 13px 17px;
   border-radius: 18px;
   position: relative;
-  animation: fadeIn 0.25s ease;
-  font-size: 16px;
+  font-size: var(--msg-size, 16px);
   line-height: 1.5;
+  animation: fadeIn 0.25s ease;
 }
 
 .user {
@@ -96,11 +103,9 @@ body {
 
 .bot {
   background: white;
-  color: black;
   border-bottom-left-radius: 6px;
 }
 
-/* хвостики */
 .user::after {
   content: "";
   position: absolute;
@@ -117,12 +122,6 @@ body {
   bottom: 0;
   border-right: 6px solid white;
   border-top: 6px solid transparent;
-}
-
-/* анимация */
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(5px); }
-  to { opacity: 1; transform: translateY(0); }
 }
 
 /* ввод */
@@ -147,30 +146,55 @@ button {
   color: white;
   padding: 13px 18px;
   border-radius: 22px;
+}
+
+/* анимации */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* 🧾 OVERLAY */
+#overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.3);
+  display: none;
+}
+
+/* 📱 BOTTOM SHEET */
+#sheet {
+  position: fixed;
+  bottom: -300px;
+  left: 0;
+  width: 100%;
+  background: white;
+  border-radius: 20px 20px 0 0;
+  padding: 20px;
+  transition: 0.3s;
+}
+
+/* заголовок */
+.sheet-title {
+  font-weight: bold;
+  margin-bottom: 15px;
+}
+
+/* кнопки */
+.option {
+  padding: 12px;
+  border-radius: 12px;
+  margin-bottom: 8px;
+  background: #f2f2f2;
   cursor: pointer;
-  font-size: 16px;
 }
 
-/* typing */
-.typing {
-  display: flex;
-  gap: 4px;
-}
-
-.dot {
-  width: 7px;
-  height: 7px;
-  background: gray;
-  border-radius: 50%;
-  animation: blink 1.4s infinite;
-}
-
-.dot:nth-child(2) { animation-delay: 0.2s; }
-.dot:nth-child(3) { animation-delay: 0.4s; }
-
-@keyframes blink {
-  0%, 80%, 100% { opacity: 0; }
-  40% { opacity: 1; }
+.option.active {
+  background: #0088cc;
+  color: white;
 }
 </style>
 </head>
@@ -178,9 +202,8 @@ button {
 <body>
 
 <div id="header">
-  <a href="https://taplink.cc/chikoyapp" class="back-btn">
-    НАЗАД
-  </a>
+  <a href="https://taplink.cc/chikoyapp" class="back-btn">НАЗАД</a>
+  <div class="menu-btn" onclick="openMenu()">⋯</div>
 </div>
 
 <div id="chat"></div>
@@ -190,15 +213,54 @@ button {
   <button onclick="send()">➤</button>
 </div>
 
+<!-- overlay -->
+<div id="overlay" onclick="closeMenu()"></div>
+
+<!-- bottom sheet -->
+<div id="sheet">
+  <div class="sheet-title">Размер текста</div>
+
+  <div class="option" onclick="setSize(14, this)">Маленький</div>
+  <div class="option" onclick="setSize(16, this)">Средний</div>
+  <div class="option" onclick="setSize(18, this)">Большой</div>
+</div>
+
 <script>
 const chat = document.getElementById("chat");
 
-let userId = localStorage.getItem("userId");
-if (!userId) {
-  userId = Date.now().toString();
-  localStorage.setItem("userId", userId);
+/* 📱 меню */
+function openMenu() {
+  document.getElementById("overlay").style.display = "block";
+  document.getElementById("sheet").style.bottom = "0";
 }
 
+function closeMenu() {
+  document.getElementById("overlay").style.display = "none";
+  document.getElementById("sheet").style.bottom = "-300px";
+}
+
+/* 🔠 размер текста */
+function setSize(size, el) {
+  document.documentElement.style.setProperty('--msg-size', size + 'px');
+  localStorage.setItem("chatFontSize", size);
+
+  document.querySelectorAll(".option").forEach(o => o.classList.remove("active"));
+  el.classList.add("active");
+
+  closeMenu();
+}
+
+/* загрузка */
+const saved = localStorage.getItem("chatFontSize");
+if (saved) {
+  document.documentElement.style.setProperty('--msg-size', saved + 'px');
+}
+
+/* 🧠 ID */
+let userId = localStorage.getItem("userId") || Date.now().toString();
+localStorage.setItem("userId", userId);
+
+/* сообщения */
 function createMessage(text, sender) {
   const row = document.createElement("div");
   row.classList.add("row", sender + "-row");
@@ -224,78 +286,25 @@ function createMessage(text, sender) {
   return bubble;
 }
 
-function showTyping() {
-  const row = document.createElement("div");
-  row.classList.add("row", "bot-row");
-
-  const avatar = document.createElement("div");
-  avatar.classList.add("avatar");
-
-  const bubble = document.createElement("div");
-  bubble.classList.add("bubble", "bot");
-
-  const typing = document.createElement("div");
-  typing.classList.add("typing");
-
-  for (let i = 0; i < 3; i++) {
-    const dot = document.createElement("div");
-    dot.classList.add("dot");
-    typing.appendChild(dot);
-  }
-
-  bubble.appendChild(typing);
-  row.appendChild(avatar);
-  row.appendChild(bubble);
-
-  chat.appendChild(row);
-  row.scrollIntoView({ behavior: "smooth" });
-
-  return row;
-}
-
 async function send() {
   const input = document.getElementById("input");
-  const text = input.value;
+  if (!input.value) return;
 
-  if (!text) return;
-
-  createMessage(text, "user");
-  input.value = "";
-
-  const typingRow = showTyping();
+  createMessage(input.value, "user");
 
   const res = await fetch("/chat", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
+    headers: {"Content-Type": "application/json"},
     body: JSON.stringify({
-      message: text,
+      message: input.value,
       userId: userId
     })
   });
 
+  input.value = "";
+
   const data = await res.json();
-
-  typingRow.remove();
-
-  typeText(data.reply, "bot");
-}
-
-function typeText(text, sender) {
-  const bubble = createMessage("", sender);
-
-  let i = 0;
-
-  function typing() {
-    if (i < text.length) {
-      bubble.textContent += text[i];
-      i++;
-      setTimeout(typing, 15);
-    }
-  }
-
-  typing();
+  createMessage(data.reply, "bot");
 }
 </script>
 
