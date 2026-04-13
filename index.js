@@ -6,7 +6,7 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static("public")); // важно!
+app.use(express.static("public"));
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -20,9 +20,9 @@ app.post("/chat", async (req, res) => {
   try {
     const userMessage = req.body.message;
 
-    const response = await openai.chat.completions.create({
+    const response = await openai.responses.create({
       model: "gpt-4o-mini",
-      messages: [
+      input: [
         {
           role: "system",
           content: "Ты помощник на сайте. Отвечай коротко и понятно."
@@ -35,11 +35,11 @@ app.post("/chat", async (req, res) => {
     });
 
     res.json({
-      reply: response.choices[0].message.content
+      reply: response.output[0].content[0].text
     });
 
   } catch (error) {
-    console.log(error); // 👈 ОЧЕНЬ важно
+    console.log("ERROR:", error);
     res.status(500).json({ reply: "Ошибка сервера" });
   }
 });
