@@ -3,6 +3,59 @@
 <head>
 <meta charset="UTF-8">
 <style>
+.message {
+  max-width: 70%;
+  padding: 10px 14px;
+  margin: 8px;
+  border-radius: 12px;
+  opacity: 0;
+  transform: translateY(10px);
+  animation: fadeIn 0.3s ease forwards;
+}
+
+.user {
+  background: #007bff;
+  color: white;
+  margin-left: auto;
+  animation: slideRight 0.3s ease forwards;
+}
+
+.bot {
+  background: #e5e5ea;
+  color: black;
+  margin-right: auto;
+  animation: slideLeft 0.3s ease forwards;
+}
+
+@keyframes fadeIn {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideRight {
+  from {
+    opacity: 0;
+    transform: translateX(40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
 body {
   font-family: Arial;
   background: #f5f5f5;
