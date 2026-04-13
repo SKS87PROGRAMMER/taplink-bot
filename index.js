@@ -8,6 +8,14 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static("public"));
 
+// 🧠 Хранилище диалога (в памяти)
+let messages = [
+  {
+    role: "system",
+    content: "Ты помощник на сайте. Отвечай коротко и понятно."
+  }
+];
+
 app.get("/", (req, res) => {
   res.send("Bot is running");
 });
@@ -16,6 +24,12 @@ app.post("/chat", async (req, res) => {
   try {
     const userMessage = req.body.message;
 
+    // добавляем сообщение пользователя
+    messages.push({
+      role: "user",
+      content: userMessage
+    });
+
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -23,27 +37,22 @@ app.post("/chat", async (req, res) => {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: "openai/gpt-3.5-turbo", // можно потом поменять
-        messages: [
-          {
-            role: "system",
-            content: "Ты помощник на сайте. Отвечай коротко и понятно."
-          },
-          {
-            role: "user",
-            content: userMessage
-          }
-        ]
+        model: "openai/gpt-3.5-turbo",
+        messages: messages
       })
     });
 
     const data = await response.json();
 
-    console.log(data); // 👈 поможет если ошибка
+    const botReply = data.choices?.[0]?.message?.content || "Нет ответа";
 
-    res.json({
-      reply: data.choices?.[0]?.message?.content || "Нет ответа"
+    // добавляем ответ бота в память
+    messages.push({
+      role: "assistant",
+      content: botReply
     });
+
+    res.json({ reply: botReply });
 
   } catch (error) {
     console.log(error);
