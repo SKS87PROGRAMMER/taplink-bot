@@ -13,52 +13,9 @@ body {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  font-size: 18px;
 }
 
-/* 🔝 HEADER */
-#header {
-  padding: 12px;
-  background: #cfd8df;
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
-
-.back-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-
-  background: #d9ccc2;
-  padding: 16px;
-  border-radius: 16px;
-
-  text-decoration: none;
-  color: black;
-  font-weight: 600;
-  font-size: 17px;
-
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-}
-
-.back-btn::before {
-  content: "↩";
-  position: absolute;
-  left: 16px;
-  font-size: 22px;
-}
-
-/* ⋯ кнопка */
-.menu-btn {
-  position: absolute;
-  right: 15px;
-  top: 18px;
-  font-size: 22px;
-  cursor: pointer;
-}
-
-/* чат */
 #chat {
   flex: 1;
   overflow-y: auto;
@@ -67,74 +24,46 @@ body {
   flex-direction: column;
 }
 
-/* сообщения */
 .row {
   display: flex;
-  align-items: flex-end;
   margin: 6px 0;
 }
 
 .bot-row { justify-content: flex-start; }
 .user-row { justify-content: flex-end; }
 
-.avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: #ccc;
-  margin: 0 8px;
-}
-
 .bubble {
   max-width: 75%;
-  padding: 13px 17px;
-  border-radius: 18px;
-  position: relative;
-  font-size: var(--msg-size, 16px);
-  line-height: 1.5;
-  animation: fadeIn 0.25s ease;
+  padding: 12px 16px;
+  border-radius: 16px;
+  animation: fadeIn 0.2s;
+  line-height: 1.4;
 }
 
 .user {
   background: #0088cc;
   color: white;
-  border-bottom-right-radius: 6px;
 }
 
 .bot {
   background: white;
-  border-bottom-left-radius: 6px;
 }
 
-.user::after {
-  content: "";
-  position: absolute;
-  right: -6px;
-  bottom: 0;
-  border-left: 6px solid #0088cc;
-  border-top: 6px solid transparent;
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; }
 }
 
-.bot::after {
-  content: "";
-  position: absolute;
-  left: -6px;
-  bottom: 0;
-  border-right: 6px solid white;
-  border-top: 6px solid transparent;
-}
-
-/* ввод */
 #inputArea {
   display: flex;
-  padding: 12px;
+  padding: 10px;
   background: #f0f0f0;
 }
 
 #input {
   flex: 1;
-  padding: 13px;
-  border-radius: 22px;
+  padding: 12px;
+  border-radius: 20px;
   border: none;
   font-size: 16px;
 }
@@ -144,167 +73,73 @@ button {
   border: none;
   background: #0088cc;
   color: white;
-  padding: 13px 18px;
-  border-radius: 22px;
-}
-
-/* анимации */
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(5px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-/* 🧾 OVERLAY */
-#overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0,0,0,0.3);
-  display: none;
-}
-
-/* 📱 BOTTOM SHEET */
-#sheet {
-  position: fixed;
-  bottom: -300px;
-  left: 0;
-  width: 100%;
-  background: white;
-  border-radius: 20px 20px 0 0;
-  padding: 20px;
-  transition: 0.3s;
-}
-
-/* заголовок */
-.sheet-title {
-  font-weight: bold;
-  margin-bottom: 15px;
-}
-
-/* кнопки */
-.option {
-  padding: 12px;
-  border-radius: 12px;
-  margin-bottom: 8px;
-  background: #f2f2f2;
-  cursor: pointer;
-}
-
-.option.active {
-  background: #0088cc;
-  color: white;
+  padding: 12px 18px;
+  border-radius: 20px;
+  font-size: 16px;
 }
 </style>
 </head>
 
 <body>
 
-<div id="header">
-  <a href="https://taplink.cc/chikoyapp" class="back-btn">НАЗАД</a>
-  <div class="menu-btn" onclick="openMenu()">⋯</div>
-</div>
-
 <div id="chat"></div>
 
 <div id="inputArea">
-  <input id="input" placeholder="Сообщение..." />
+  <input id="input" placeholder="Напиши сообщение..." />
   <button onclick="send()">➤</button>
-</div>
-
-<!-- overlay -->
-<div id="overlay" onclick="closeMenu()"></div>
-
-<!-- bottom sheet -->
-<div id="sheet">
-  <div class="sheet-title">Размер текста</div>
-
-  <div class="option" onclick="setSize(14, this)">Маленький</div>
-  <div class="option" onclick="setSize(16, this)">Средний</div>
-  <div class="option" onclick="setSize(18, this)">Большой</div>
 </div>
 
 <script>
 const chat = document.getElementById("chat");
 
-/* 📱 меню */
-function openMenu() {
-  document.getElementById("overlay").style.display = "block";
-  document.getElementById("sheet").style.bottom = "0";
-}
-
-function closeMenu() {
-  document.getElementById("overlay").style.display = "none";
-  document.getElementById("sheet").style.bottom = "-300px";
-}
-
-/* 🔠 размер текста */
-function setSize(size, el) {
-  document.documentElement.style.setProperty('--msg-size', size + 'px');
-  localStorage.setItem("chatFontSize", size);
-
-  document.querySelectorAll(".option").forEach(o => o.classList.remove("active"));
-  el.classList.add("active");
-
-  closeMenu();
-}
-
-/* загрузка */
-const saved = localStorage.getItem("chatFontSize");
-if (saved) {
-  document.documentElement.style.setProperty('--msg-size', saved + 'px');
-}
-
-/* 🧠 ID */
-let userId = localStorage.getItem("userId") || Date.now().toString();
-localStorage.setItem("userId", userId);
-
-/* сообщения */
 function createMessage(text, sender) {
   const row = document.createElement("div");
   row.classList.add("row", sender + "-row");
-
-  const avatar = document.createElement("div");
-  avatar.classList.add("avatar");
 
   const bubble = document.createElement("div");
   bubble.classList.add("bubble", sender);
   bubble.textContent = text;
 
-  if (sender === "bot") {
-    row.appendChild(avatar);
-    row.appendChild(bubble);
-  } else {
-    row.appendChild(bubble);
-    row.appendChild(avatar);
-  }
-
+  row.appendChild(bubble);
   chat.appendChild(row);
-  row.scrollIntoView({ behavior: "smooth" });
 
+  row.scrollIntoView({ behavior: "smooth" });
   return bubble;
 }
 
 async function send() {
   const input = document.getElementById("input");
-  if (!input.value) return;
+  const text = input.value;
 
-  createMessage(input.value, "user");
+  if (!text) return;
+
+  createMessage(text, "user");
+  input.value = "";
 
   const res = await fetch("/chat", {
     method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({
-      message: input.value,
-      userId: userId
-    })
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message: text })
   });
 
-  input.value = "";
-
   const data = await res.json();
-  createMessage(data.reply, "bot");
+
+  typeText(data.reply, "bot");
+}
+
+function typeText(text, sender) {
+  const bubble = createMessage("", sender);
+  let i = 0;
+
+  function typing() {
+    if (i < text.length) {
+      bubble.textContent += text[i];
+      i++;
+      setTimeout(typing, 10);
+    }
+  }
+
+  typing();
 }
 </script>
 
