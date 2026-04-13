@@ -1,104 +1,95 @@
-// 🧠 память пользователей
-const userMemory = {};
 import express from "express";
 import fetch from "node-fetch";
 import cors from "cors";
 
 const app = express();
-app.use(express.json());
+
 app.use(cors());
-
-// 🔥 фикс для Taplink iframe
-app.use((req, res, next) => {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.removeHeader("X-Frame-Options");
-  res.setHeader("Content-Security-Policy", "frame-ancestors *");
-  next();
-});
-
-// 📁 статика
+app.use(express.json());
 app.use(express.static("public"));
 
-// 🧠 память пользователей
+/* 🧠 память */
 const userMemory = {};
 
-// 🟢 проверка (для пинга)
-app.get("/", (req, res) => {
-  res.send("OK");
-});
+/* тестовый справочник */
+function findMatches(message) {
+  const text = message.toLowerCase();
 
-// 🤖 чат
+  if (text.includes("страх")) {
+    return [
+      {
+        category: "Автострахование",
+        companies: [
+          {
+            name: "АльфаСтрахование",
+            desc: "ОСАГО и КАСКО",
+            phone: "+79991234567",
+            site: "https://alfastrah.ru"
+          }
+        ]
+      }
+    ];
+  }
+
+  return [];
+}
+
 app.post("/chat", async (req, res) => {
   try {
-    const { message } = req.body;
-    const userId = req.ip;
-
-    if (!message) {
-      return res.json({ reply: "Напиши что-нибудь 🙂" });
-    }
+    const { message, userId } = req.body;
 
     if (!userMemory[userId]) {
       userMemory[userId] = [];
     }
 
-    // сохраняем сообщение
     userMemory[userId].push({
       role: "user",
       content: message
     });
 
-    // 🔥 ограничиваем память (последние 10 сообщений)
-    if (userMemory[userId].length > 10) {
-      userMemory[userId] = userMemory[userId].slice(-10);
+    const matches = findMatches(message);
+
+    if (matches.length > 0) {
+      return res.json({
+        type: "cards",
+        data: matches
+      });
     }
+
+    const history = userMemory[userId].slice(-10);
 
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://your-site.com",
-        "X-Title": "Chikoy App"
+        "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: "openai/gpt-4.1-mini", // 🔥 стабильная модель
-        messages: userMemory[userId],
-        max_tokens: 500,              // 🔥 фикс ошибки кредитов
-        temperature: 0.7
+        model: "openai/gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: "Ты помощник справочника. Учитывай прошлые сообщения."
+          },
+          ...history
+        ]
       })
     });
 
     const data = await response.json();
+    const reply = data.choices?.[0]?.message?.content || "Ничего не найдено";
 
-    console.log("OPENROUTER:", JSON.stringify(data, null, 2));
-
-    // ❌ ошибка API
-    if (data.error) {
-      return res.json({
-        reply: "Ошибка API 😢: " + data.error.message
-      });
-    }
-
-    const reply =
-      data.choices?.[0]?.message?.content ||
-      "Не смог ответить 😢";
-
-    // сохраняем ответ
     userMemory[userId].push({
       role: "assistant",
       content: reply
     });
 
-    res.json({ reply });
+    res.json({ type: "text", reply });
 
-  } catch (err) {
-    console.error("SERVER ERROR:", err);
-    res.json({ reply: "Ошибка сервера 😢" });
+  } catch (e) {
+    console.error(e);
+    res.json({ type: "text", reply: "Ошибка сервера 😢" });
   }
 });
 
-// 🚀 запуск
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log("Server started on port " + PORT);
-});
+app.listen(3000, () => console.log("Server running"));
