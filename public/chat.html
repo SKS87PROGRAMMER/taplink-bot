@@ -138,12 +138,44 @@ button {
   0%, 80%, 100% { opacity: 0; }
   40% { opacity: 1; }
 }
+
+  /* 🔝 верхняя панель */
+#header {
+  padding: 10px;
+  background: #d8ccc2;
+  display: flex;
+  justify-content: center;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+/* 🔙 кнопка */
+.back-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #e6dad0;
+  padding: 12px 20px;
+  border-radius: 14px;
+  text-decoration: none;
+  color: black;
+  font-weight: bold;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+  transition: 0.2s;
+}
+
+.back-btn:hover {
+  transform: scale(1.03);
+}
+  
 </style>
 </head>
 
 <body>
-
-<h1>мини-приложение Чикой</h1>
+  <div id="header">
+  <a href="https://taplink.cc/chikoyapp" class="back-btn">
+    ⬅️ НАЗАД
+  </a>
+</div>
 
 <div id="chat"></div>
 
