@@ -6,35 +6,43 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static("public")); // отдаём фронт
+app.use(express.static("public"));
 
-// 🧠 СПРАВОЧНИК
+/* 🧠 СПРАВОЧНИК */
 const directory = [
   {
     category: "Автострахование",
     keywords: ["страховка", "осаго", "каско", "страх", "автострах"],
     companies: [
-      { name: "АльфаСтрахование", desc: "ОСАГО и КАСКО" },
-      { name: "Росгосстрах", desc: "Все виды автострахования" }
+      {
+        name: "АльфаСтрахование",
+        desc: "ОСАГО и КАСКО",
+        phone: "+79991234567",
+        site: "https://alfastrah.ru"
+      },
+      {
+        name: "Росгосстрах",
+        desc: "Все виды автострахования",
+        phone: "+79997654321",
+        site: "https://rgs.ru"
+      }
     ]
   },
   {
     category: "Салоны красоты",
-    keywords: ["маникюр", "ногти", "стрижка", "парикмахер"],
+    keywords: ["маникюр", "ногти", "стрижка"],
     companies: [
-      { name: "Beauty Studio", desc: "Маникюр и уход" }
-    ]
-  },
-  {
-    category: "Автосервисы",
-    keywords: ["ремонт авто", "сто", "шиномонтаж", "автосервис"],
-    companies: [
-      { name: "AutoFix", desc: "Ремонт и диагностика" }
+      {
+        name: "Beauty Studio",
+        desc: "Маникюр и уход",
+        phone: "+79990001122",
+        site: "https://example.com"
+      }
     ]
   }
 ];
 
-// 🔍 ПОИСК
+/* 🔍 ПОИСК */
 function findMatches(message) {
   const text = message.toLowerCase();
   let results = [];
@@ -51,27 +59,22 @@ function findMatches(message) {
   return results;
 }
 
-// 🤖 API
+/* 🤖 API */
 app.post("/chat", async (req, res) => {
   try {
     const { message } = req.body;
 
     const matches = findMatches(message);
 
-    let context = "";
-
+    // ✅ если нашли — отдаём карточки
     if (matches.length > 0) {
-      context = `
-Найдены категории:
-${matches.map(m => `
-📂 ${m.category}
-${m.companies.map(c => `- ${c.name} (${c.desc})`).join("\n")}
-`).join("\n")}
-`;
-    } else {
-      context = "Ничего не найдено в справочнике.";
+      return res.json({
+        type: "cards",
+        data: matches
+      });
     }
 
+    // 🤖 если не нашли — ИИ
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -80,22 +83,11 @@ ${m.companies.map(c => `- ${c.name} (${c.desc})`).join("\n")}
       },
       body: JSON.stringify({
         model: "openai/gpt-4o-mini",
-        max_tokens: 500,
+        max_tokens: 200,
         messages: [
           {
             role: "system",
-            content: `
-Ты помощник справочника.
-
-${context}
-
-Правила:
-- отвечай кратко
-- показывай категории
-- показывай компании
-- не выдумывай данные
-- если не найдено — предложи похожее
-`
+            content: "Ты помощник справочника. Если не знаешь — предложи уточнить запрос."
           },
           {
             role: "user",
@@ -108,14 +100,15 @@ ${context}
     const data = await response.json();
 
     res.json({
-      reply: data.choices?.[0]?.message?.content || "Ошибка ответа 😢"
+      type: "text",
+      reply: data.choices?.[0]?.message?.content || "Ничего не найдено 😢"
     });
 
-  } catch (err) {
-    console.error(err);
-    res.json({ reply: "Ошибка сервера 😢" });
+  } catch (e) {
+    console.error(e);
+    res.json({ type: "text", reply: "Ошибка сервера 😢" });
   }
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log("Server running on port " + PORT));
+app.listen(PORT, () => console.log("Server running on " + PORT));
