@@ -1,51 +1,101 @@
-import express from "express";
-import cors from "cors";
-import OpenAI from "openai";
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+body {
+  font-family: Arial;
+  background: #f5f5f5;
+  margin: 0;
+}
 
-const app = express();
+.chat {
+  max-width: 500px;
+  margin: auto;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
 
-app.use(cors());
-app.use(express.json());
-app.use(express.static("public")); // важно!
+.messages {
+  flex: 1;
+  padding: 10px;
+  overflow-y: auto;
+}
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+.msg {
+  margin: 5px 0;
+  padding: 10px;
+  border-radius: 10px;
+  max-width: 80%;
+}
 
-app.get("/", (req, res) => {
-  res.send("Bot is running");
-});
+.user {
+  background: #007bff;
+  color: white;
+  margin-left: auto;
+}
 
-app.post("/chat", async (req, res) => {
-  try {
-    const userMessage = req.body.message;
+.bot {
+  background: #e0e0e0;
+}
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "system",
-          content: "Ты помощник на сайте. Отвечай коротко и понятно."
-        },
-        {
-          role: "user",
-          content: userMessage
-        }
-      ]
-    });
+.input {
+  display: flex;
+  padding: 10px;
+  background: white;
+}
 
-    res.json({
-      reply: response.choices[0].message.content
-    });
+input {
+  flex: 1;
+  padding: 10px;
+}
 
-  } catch (error) {
-    console.log(error); // 👈 ОЧЕНЬ важно
-    res.status(500).json({ reply: "Ошибка сервера" });
-  }
-});
+button {
+  padding: 10px;
+}
+</style>
+</head>
 
-const PORT = process.env.PORT || 3000;
+<body>
 
-app.listen(PORT, () => {
-  console.log("Server started on port " + PORT);
-});
+<div class="chat">
+  <div class="messages" id="chat"></div>
+
+  <div class="input">
+    <input id="msg" placeholder="Напиши сообщение..." />
+    <button onclick="send()">➤</button>
+  </div>
+</div>
+
+<script>
+async function send() {
+  const input = document.getElementById("msg");
+  const message = input.value;
+
+  if (!message) return;
+
+  const chat = document.getElementById("chat");
+
+  chat.innerHTML += `<div class="msg user">${message}</div>`;
+
+  input.value = "";
+
+  const res = await fetch("/chat", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ message })
+  });
+
+  const data = await res.json();
+
+  chat.innerHTML += `<div class="msg bot">${data.reply}</div>`;
+
+  chat.scrollTop = chat.scrollHeight;
+}
+</script>
+
+</body>
+</html>
