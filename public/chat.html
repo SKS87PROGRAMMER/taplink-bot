@@ -1,152 +1,165 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
 <meta charset="UTF-8">
+<title>Chat</title>
+
 <style>
+body {
+  font-family: Arial;
+  background: #f5f5f5;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+#chat {
+  flex: 1;
+  overflow-y: auto;
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+}
+
 .message {
   max-width: 70%;
   padding: 10px 14px;
-  margin: 8px;
+  margin: 6px 0;
   border-radius: 12px;
   opacity: 0;
-  transform: translateY(10px);
-  animation: fadeIn 0.3s ease forwards;
+  animation: fadeIn 0.3s forwards;
 }
 
 .user {
   background: #007bff;
   color: white;
-  margin-left: auto;
-  animation: slideRight 0.3s ease forwards;
+  align-self: flex-end;
+  animation: slideRight 0.3s forwards;
 }
 
 .bot {
   background: #e5e5ea;
   color: black;
-  margin-right: auto;
-  animation: slideLeft 0.3s ease forwards;
+  align-self: flex-start;
+  animation: slideLeft 0.3s forwards;
+}
+
+.typing {
+  font-style: italic;
+  opacity: 0.6;
 }
 
 @keyframes fadeIn {
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  to { opacity: 1; }
 }
 
 @keyframes slideRight {
-  from {
-    opacity: 0;
-    transform: translateX(40px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
+  from { transform: translateX(40px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
 }
 
 @keyframes slideLeft {
-  from {
-    opacity: 0;
-    transform: translateX(-40px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
+  from { transform: translateX(-40px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
 }
 
-body {
-  font-family: Arial;
-  background: #f5f5f5;
-  margin: 0;
-}
-
-.chat {
-  max-width: 500px;
-  margin: auto;
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-}
-
-.messages {
-  flex: 1;
-  padding: 10px;
-  overflow-y: auto;
-}
-
-.msg {
-  margin: 5px 0;
-  padding: 10px;
-  border-radius: 10px;
-  max-width: 80%;
-}
-
-.user {
-  background: #007bff;
-  color: white;
-  margin-left: auto;
-}
-
-.bot {
-  background: #e0e0e0;
-}
-
-.input {
+#inputArea {
   display: flex;
   padding: 10px;
   background: white;
 }
 
-input {
+#input {
   flex: 1;
   padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
 }
 
 button {
-  padding: 10px;
+  margin-left: 10px;
+  padding: 10px 15px;
+  border: none;
+  background: #007bff;
+  color: white;
+  border-radius: 8px;
+  cursor: pointer;
 }
 </style>
 </head>
 
 <body>
 
-<div class="chat">
-  <div class="messages" id="chat"></div>
+<div id="chat"></div>
 
-  <div class="input">
-    <input id="msg" placeholder="Напиши сообщение..." />
-    <button onclick="send()">➤</button>
-  </div>
+<div id="inputArea">
+  <input id="input" placeholder="Напиши сообщение..." />
+  <button onclick="send()">➤</button>
 </div>
 
 <script>
+const chat = document.getElementById("chat");
+
+function addMessage(text, sender, isTyping = false) {
+  const msg = document.createElement("div");
+  msg.classList.add("message", sender);
+
+  if (isTyping) {
+    msg.classList.add("typing");
+  }
+
+  msg.textContent = text;
+  chat.appendChild(msg);
+
+  msg.scrollIntoView({ behavior: "smooth" });
+  return msg;
+}
+
 async function send() {
-  const input = document.getElementById("msg");
-  const message = input.value;
+  const input = document.getElementById("input");
+  const text = input.value;
 
-  if (!message) return;
+  if (!text) return;
 
-  const chat = document.getElementById("chat");
-
-  chat.innerHTML += `<div class="msg user">${message}</div>`;
-
+  addMessage(text, "user");
   input.value = "";
+
+  // индикатор "печатает..."
+  const typingMsg = addMessage("печатает...", "bot", true);
 
   const res = await fetch("/chat", {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
     },
-    body: JSON.stringify({ message })
+    body: JSON.stringify({ message: text })
   });
 
   const data = await res.json();
 
-  chat.innerHTML += `<div class="msg bot">${data.reply}</div>`;
+  typingMsg.remove();
 
-  chat.scrollTop = chat.scrollHeight;
+  typeText(data.reply, "bot");
+}
+
+// эффект печати как в ChatGPT
+function typeText(text, sender) {
+  const msg = document.createElement("div");
+  msg.classList.add("message", sender);
+  chat.appendChild(msg);
+
+  let i = 0;
+
+  function typing() {
+    if (i < text.length) {
+      msg.textContent += text.charAt(i);
+      i++;
+      setTimeout(typing, 15);
+    }
+  }
+
+  typing();
 }
 </script>
 
