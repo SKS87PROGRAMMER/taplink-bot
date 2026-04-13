@@ -3,112 +3,100 @@ import fetch from "node-fetch";
 import cors from "cors";
 
 const app = express();
-
-app.use(cors());
 app.use(express.json());
+app.use(cors());
+
+// 🔥 фикс для Taplink iframe
+app.use((req, res, next) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.removeHeader("X-Frame-Options");
+  res.setHeader("Content-Security-Policy", "frame-ancestors *");
+  next();
+});
+
+// 📁 статика
 app.use(express.static("public"));
 
-/* 🧠 СПРАВОЧНИК */
-const directory = [
-  {
-    category: "Автострахование",
-    keywords: ["страховка", "осаго", "каско", "страх", "автострах"],
-    companies: [
-      {
-        name: "АльфаСтрахование",
-        desc: "ОСАГО и КАСКО",
-        phone: "+79991234567",
-        site: "https://alfastrah.ru"
-      },
-      {
-        name: "Росгосстрах",
-        desc: "Все виды автострахования",
-        phone: "+79997654321",
-        site: "https://rgs.ru"
-      }
-    ]
-  },
-  {
-    category: "Салоны красоты",
-    keywords: ["маникюр", "ногти", "стрижка"],
-    companies: [
-      {
-        name: "Beauty Studio",
-        desc: "Маникюр и уход",
-        phone: "+79990001122",
-        site: "https://example.com"
-      }
-    ]
-  }
-];
+// 🧠 память пользователей
+const userMemory = {};
 
-/* 🔍 ПОИСК */
-function findMatches(message) {
-  const text = message.toLowerCase();
-  let results = [];
+// 🟢 проверка (для пинга)
+app.get("/", (req, res) => {
+  res.send("OK");
+});
 
-  for (const item of directory) {
-    for (const key of item.keywords) {
-      if (text.includes(key)) {
-        results.push(item);
-        break;
-      }
-    }
-  }
-
-  return results;
-}
-
-/* 🤖 API */
+// 🤖 чат
 app.post("/chat", async (req, res) => {
   try {
     const { message } = req.body;
+    const userId = req.ip;
 
-    const matches = findMatches(message);
-
-    // ✅ если нашли — отдаём карточки
-    if (matches.length > 0) {
-      return res.json({
-        type: "cards",
-        data: matches
-      });
+    if (!message) {
+      return res.json({ reply: "Напиши что-нибудь 🙂" });
     }
 
-    // 🤖 если не нашли — ИИ
+    if (!userMemory[userId]) {
+      userMemory[userId] = [];
+    }
+
+    // сохраняем сообщение
+    userMemory[userId].push({
+      role: "user",
+      content: message
+    });
+
+    // 🔥 ограничиваем память (последние 10 сообщений)
+    if (userMemory[userId].length > 10) {
+      userMemory[userId] = userMemory[userId].slice(-10);
+    }
+
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://your-site.com",
+        "X-Title": "Chikoy App"
       },
       body: JSON.stringify({
-        model: "openai/gpt-4o-mini",
-        max_tokens: 200,
-        messages: [
-          {
-            role: "system",
-            content: "Ты помощник справочника. Если не знаешь — предложи уточнить запрос."
-          },
-          {
-            role: "user",
-            content: message
-          }
-        ]
+        model: "openai/gpt-4.1-mini", // 🔥 стабильная модель
+        messages: userMemory[userId],
+        max_tokens: 500,              // 🔥 фикс ошибки кредитов
+        temperature: 0.7
       })
     });
 
     const data = await response.json();
 
-    res.json({
-      type: "text",
-      reply: data.choices?.[0]?.message?.content || "Ничего не найдено 😢"
+    console.log("OPENROUTER:", JSON.stringify(data, null, 2));
+
+    // ❌ ошибка API
+    if (data.error) {
+      return res.json({
+        reply: "Ошибка API 😢: " + data.error.message
+      });
+    }
+
+    const reply =
+      data.choices?.[0]?.message?.content ||
+      "Не смог ответить 😢";
+
+    // сохраняем ответ
+    userMemory[userId].push({
+      role: "assistant",
+      content: reply
     });
 
-  } catch (e) {
-    console.error(e);
-    res.json({ type: "text", reply: "Ошибка сервера 😢" });
+    res.json({ reply });
+
+  } catch (err) {
+    console.error("SERVER ERROR:", err);
+    res.json({ reply: "Ошибка сервера 😢" });
   }
 });
 
+// 🚀 запуск
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log("Server running on " + PORT));
+app.listen(PORT, () => {
+  console.log("Server started on port " + PORT);
+});
