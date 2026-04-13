@@ -50,3 +50,32 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log("Server started on port " + PORT);
 });
+
+app.use(express.json());
+
+app.post("/chat", async (req, res) => {
+  const userMessage = req.body.message;
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content: "Ты помощник на сайте. Подсказывай пользователю какие услуги есть и куда нажать."
+        },
+        {
+          role: "user",
+          content: userMessage
+        }
+      ]
+    });
+
+    res.json({
+      reply: response.choices[0].message.content
+    });
+
+  } catch (error) {
+    res.json({ reply: "Ошибка сервера" });
+  }
+});
