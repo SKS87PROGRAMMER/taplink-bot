@@ -6,11 +6,15 @@
 <title>Чат Чикой</title>
 
 <style>
+:root {
+  --font-size: 17px;
+}
+
 body {
   margin: 0;
   font-family: Arial;
   background: #e5ddd5;
-  font-size: 18px;
+  font-size: var(--font-size);
 }
 
 /* 🔝 HEADER */
@@ -20,7 +24,13 @@ body {
   width: 100%;
   padding: 10px;
   background: #d8ccc2;
-  z-index: 1000;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+/* контейнер для отступов */
+.header-inner {
+  max-width: 600px;
+  margin: 0 auto;
 }
 
 .back-btn {
@@ -36,11 +46,14 @@ body {
   text-transform: uppercase;
 }
 
-/* чат */
+/* 💬 ЧАТ */
 #chat {
-  margin-top: 80px;
-  margin-bottom: 80px;
-  padding: 15px;
+  margin-top: 90px;
+  margin-bottom: 90px;
+  padding: 10px;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 /* сообщения */
@@ -53,9 +66,10 @@ body {
 
 .bubble {
   max-width: 75%;
-  padding: 12px;
+  padding: 12px 16px;
   border-radius: 16px;
   white-space: pre-line;
+  font-size: var(--font-size);
 }
 
 .user { background: #0088cc; color: white; }
@@ -71,7 +85,7 @@ body {
 }
 
 .card-title { font-weight: bold; }
-.card-desc { font-size: 14px; margin: 5px 0; }
+.card-desc { margin: 6px 0; }
 
 .card-buttons {
   display: flex;
@@ -83,51 +97,72 @@ body {
   text-align: center;
   background: #0088cc;
   color: white;
-  padding: 8px;
+  padding: 10px;
   border-radius: 10px;
   text-decoration: none;
-  font-size: 14px;
+  font-size: var(--font-size);
 }
 
-/* ввод */
+/* ⌨️ ВВОД */
 #inputArea {
   position: fixed;
   bottom: 0;
   width: 100%;
-  display: flex;
-  padding: 10px;
   background: #f0f0f0;
+  padding: 10px 0;
+  box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+}
+
+.input-inner {
+  max-width: 600px;
+  margin: 0 auto;
+  display: flex;
+  gap: 10px;
+  padding: 0 10px;
 }
 
 #input {
   flex: 1;
-  padding: 12px;
+  padding: 14px 16px;
   border-radius: 20px;
   border: none;
+  font-size: var(--font-size);
 }
 
 button {
-  margin-left: 10px;
   background: #0088cc;
   color: white;
   border: none;
-  padding: 12px;
+  padding: 0 18px;
   border-radius: 20px;
+  font-size: var(--font-size);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 </style>
 </head>
 
 <body>
 
+<!-- 🔝 HEADER -->
 <div id="header">
-  <a href="https://taplink.cc/chikoyapp" class="back-btn">⬅️ НАЗАД</a>
+  <div class="header-inner">
+    <a href="https://taplink.cc/chikoyapp" class="back-btn">
+      ⬅️ НАЗАД
+    </a>
+  </div>
 </div>
 
+<!-- 💬 ЧАТ -->
 <div id="chat"></div>
 
+<!-- ⌨️ ВВОД -->
 <div id="inputArea">
-  <input id="input" placeholder="Напиши сообщение..." />
-  <button onclick="send()">➤</button>
+  <div class="input-inner">
+    <input id="input" placeholder="Напиши сообщение..." />
+    <button onclick="send()">➤</button>
+  </div>
 </div>
 
 <script>
@@ -143,6 +178,8 @@ function createMessage(text, sender) {
 
   row.appendChild(bubble);
   chat.appendChild(row);
+
+  chat.scrollTop = chat.scrollHeight;
 }
 
 function renderCards(categories) {
@@ -162,8 +199,8 @@ function renderCards(categories) {
         <div class="card-title">${c.name}</div>
         <div class="card-desc">${c.desc}</div>
         <div class="card-buttons">
-          <a href="tel:${c.phone}">📞</a>
-          <a href="${c.site}" target="_blank">🌐</a>
+          <a href="tel:${c.phone}">📞 Позвонить</a>
+          <a href="${c.site}" target="_blank">🌐 Сайт</a>
         </div>
       `;
 
