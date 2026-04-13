@@ -24,6 +24,7 @@ body {
   z-index: 10;
 }
 
+/* кнопка назад */
 .back-btn {
   display: flex;
   align-items: center;
@@ -47,6 +48,38 @@ body {
   position: absolute;
   left: 16px;
   font-size: 22px;
+}
+
+/* ⚙️ кнопка настроек */
+.settings-btn {
+  position: absolute;
+  right: 15px;
+  top: 18px;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+/* ⚙️ меню */
+#settingsMenu {
+  position: absolute;
+  right: 10px;
+  top: 70px;
+  background: white;
+  border-radius: 12px;
+  padding: 10px;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+  display: none;
+}
+
+#settingsMenu button {
+  display: block;
+  width: 100%;
+  margin: 5px 0;
+  padding: 8px;
+  border: none;
+  border-radius: 8px;
+  background: #eee;
+  cursor: pointer;
 }
 
 /* чат */
@@ -84,7 +117,7 @@ body {
   border-radius: 18px;
   position: relative;
   animation: fadeIn 0.25s ease;
-  font-size: 15px;
+  font-size: var(--msg-size, 15px);
   line-height: 1.4;
 }
 
@@ -137,7 +170,7 @@ body {
   padding: 12px;
   border-radius: 22px;
   border: none;
-  font-size: 15px;
+  font-size: 16px;
 }
 
 button {
@@ -148,7 +181,6 @@ button {
   padding: 12px 18px;
   border-radius: 22px;
   cursor: pointer;
-  font-size: 16px;
 }
 
 /* typing */
@@ -172,21 +204,6 @@ button {
   0%, 80%, 100% { opacity: 0; }
   40% { opacity: 1; }
 }
-
-/* 📱 мобильное усиление */
-@media (max-width: 480px) {
-  .bubble {
-    font-size: 16px;
-  }
-
-  #input {
-    font-size: 16px;
-  }
-
-  .back-btn {
-    font-size: 17px;
-  }
-}
 </style>
 </head>
 
@@ -196,6 +213,13 @@ button {
   <a href="https://taplink.cc/chikoyapp" class="back-btn">
     НАЗАД
   </a>
+  <div class="settings-btn" onclick="toggleSettings()">⚙️</div>
+</div>
+
+<div id="settingsMenu">
+  <button onclick="setSize(14)">Маленький</button>
+  <button onclick="setSize(16)">Средний</button>
+  <button onclick="setSize(18)">Большой</button>
 </div>
 
 <div id="chat"></div>
@@ -208,6 +232,25 @@ button {
 <script>
 const chat = document.getElementById("chat");
 
+/* 🔧 настройки размера */
+function setSize(size) {
+  document.documentElement.style.setProperty('--msg-size', size + 'px');
+  localStorage.setItem("chatFontSize", size);
+  document.getElementById("settingsMenu").style.display = "none";
+}
+
+function toggleSettings() {
+  const menu = document.getElementById("settingsMenu");
+  menu.style.display = menu.style.display === "block" ? "none" : "block";
+}
+
+/* загрузка размера */
+const savedSize = localStorage.getItem("chatFontSize");
+if (savedSize) {
+  document.documentElement.style.setProperty('--msg-size', savedSize + 'px');
+}
+
+/* 🧠 ID */
 let userId = localStorage.getItem("userId");
 if (!userId) {
   userId = Date.now().toString();
