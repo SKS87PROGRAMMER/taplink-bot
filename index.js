@@ -1,75 +1,69 @@
 import express from "express";
-import cors from "cors";
 import fetch from "node-fetch";
+import cors from "cors";
 
 const app = express();
-
-app.use(cors());
 app.use(express.json());
-app.use(express.static("public"));
+app.use(cors());
 
-// 🧠 память по пользователям
-const userMemory = {};
-
-app.get("/", (req, res) => {
-  res.send("Bot is running");
+// 🔥 ВАЖНО — разрешаем iframe (Taplink)
+app.use((req, res, next) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.removeHeader("X-Frame-Options");
+  res.setHeader("Content-Security-Policy", "frame-ancestors *");
+  next();
 });
 
+// 📁 раздаём статические файлы (chat.html)
+app.use(express.static("public"));
+
+// 🧠 память пользователей
+const userMemory = {};
+
+// 🤖 чат endpoint
 app.post("/chat", async (req, res) => {
+  const { message } = req.body;
+
+  // 👤 определяем пользователя (можно улучшить позже)
+  const userId = req.ip;
+
+  if (!userMemory[userId]) {
+    userMemory[userId] = [];
+  }
+
+  // сохраняем сообщение
+  userMemory[userId].push({ role: "user", content: message });
+
   try {
-    const { message, userId } = req.body;
-
-    // если нет userId — создаём дефолт
-    const id = userId || "default";
-
-    // если у пользователя нет истории — создаём
-    if (!userMemory[id]) {
-      userMemory[id] = [
-        {
-          role: "system",
-          content: "Ты помощник на сайте. Отвечай коротко и понятно."
-        }
-      ];
-    }
-
-    // добавляем сообщение пользователя
-    userMemory[id].push({
-      role: "user",
-      content: message
-    });
-
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: "openai/gpt-3.5-turbo",
-        messages: userMemory[id]
+        model: "gpt-4o-mini",
+        messages: userMemory[userId]
       })
     });
 
     const data = await response.json();
 
-    const botReply = data.choices?.[0]?.message?.content || "Нет ответа";
+    const reply = data.choices?.[0]?.message?.content || "Ошибка 😢";
 
     // сохраняем ответ
-    userMemory[id].push({
-      role: "assistant",
-      content: botReply
-    });
+    userMemory[userId].push({ role: "assistant", content: reply });
 
-    res.json({ reply: botReply });
+    res.json({ reply });
 
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({ reply: "Ошибка сервера" });
+  } catch (err) {
+    console.error(err);
+    res.json({ reply: "Ошибка сервера 😢" });
   }
 });
 
+// 🚀 запуск сервера
 const PORT = process.env.PORT || 3000;
-
 app.listen(PORT, () => {
   console.log("Server started on port " + PORT);
 });
