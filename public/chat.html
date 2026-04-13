@@ -6,14 +6,15 @@
 
 <style>
 body {
-  font-family: Arial;
-  background: #f5f5f5;
   margin: 0;
+  font-family: Arial;
+  background: #e5ddd5;
   display: flex;
   flex-direction: column;
   height: 100vh;
 }
 
+/* чат */
 #chat {
   flex: 1;
   overflow-y: auto;
@@ -22,69 +23,124 @@ body {
   flex-direction: column;
 }
 
-.message {
-  max-width: 70%;
+/* строка сообщения */
+.row {
+  display: flex;
+  align-items: flex-end;
+  margin: 5px 0;
+}
+
+/* бот слева */
+.bot-row {
+  justify-content: flex-start;
+}
+
+/* пользователь справа */
+.user-row {
+  justify-content: flex-end;
+}
+
+/* аватар */
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #ccc;
+  margin: 0 8px;
+}
+
+/* пузырь */
+.bubble {
+  max-width: 65%;
   padding: 10px 14px;
-  margin: 6px 0;
-  border-radius: 12px;
-  opacity: 0;
-  animation: fadeIn 0.3s forwards;
+  border-radius: 16px;
+  position: relative;
+  animation: fadeIn 0.25s ease;
 }
 
+/* пользователь */
 .user {
-  background: #007bff;
+  background: #0088cc;
   color: white;
-  align-self: flex-end;
-  animation: slideRight 0.3s forwards;
+  border-bottom-right-radius: 4px;
 }
 
+/* бот */
 .bot {
-  background: #e5e5ea;
+  background: white;
   color: black;
-  align-self: flex-start;
-  animation: slideLeft 0.3s forwards;
+  border-bottom-left-radius: 4px;
 }
 
-.typing {
-  font-style: italic;
-  opacity: 0.6;
+/* хвостик */
+.user::after {
+  content: "";
+  position: absolute;
+  right: -6px;
+  bottom: 0;
+  border-left: 6px solid #0088cc;
+  border-top: 6px solid transparent;
 }
 
+.bot::after {
+  content: "";
+  position: absolute;
+  left: -6px;
+  bottom: 0;
+  border-right: 6px solid white;
+  border-top: 6px solid transparent;
+}
+
+/* анимация */
 @keyframes fadeIn {
-  to { opacity: 1; }
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes slideRight {
-  from { transform: translateX(40px); opacity: 0; }
-  to { transform: translateX(0); opacity: 1; }
-}
-
-@keyframes slideLeft {
-  from { transform: translateX(-40px); opacity: 0; }
-  to { transform: translateX(0); opacity: 1; }
-}
-
+/* ввод */
 #inputArea {
   display: flex;
   padding: 10px;
-  background: white;
+  background: #f0f0f0;
 }
 
 #input {
   flex: 1;
   padding: 10px;
-  border: 1px solid #ccc;
-  border-radius: 8px;
+  border-radius: 20px;
+  border: none;
 }
 
 button {
   margin-left: 10px;
-  padding: 10px 15px;
   border: none;
-  background: #007bff;
+  background: #0088cc;
   color: white;
-  border-radius: 8px;
+  padding: 10px 16px;
+  border-radius: 20px;
   cursor: pointer;
+}
+
+/* typing dots */
+.typing {
+  display: flex;
+  gap: 4px;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  background: gray;
+  border-radius: 50%;
+  animation: blink 1.4s infinite;
+}
+
+.dot:nth-child(2) { animation-delay: 0.2s; }
+.dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes blink {
+  0%, 80%, 100% { opacity: 0; }
+  40% { opacity: 1; }
 }
 </style>
 </head>
@@ -94,26 +150,65 @@ button {
 <div id="chat"></div>
 
 <div id="inputArea">
-  <input id="input" placeholder="Напиши сообщение..." />
+  <input id="input" placeholder="Сообщение..." />
   <button onclick="send()">➤</button>
 </div>
 
 <script>
 const chat = document.getElementById("chat");
 
-function addMessage(text, sender, isTyping = false) {
-  const msg = document.createElement("div");
-  msg.classList.add("message", sender);
+function createMessage(text, sender) {
+  const row = document.createElement("div");
+  row.classList.add("row", sender + "-row");
 
-  if (isTyping) {
-    msg.classList.add("typing");
+  const avatar = document.createElement("div");
+  avatar.classList.add("avatar");
+
+  const bubble = document.createElement("div");
+  bubble.classList.add("bubble", sender);
+  bubble.textContent = text;
+
+  if (sender === "bot") {
+    row.appendChild(avatar);
+    row.appendChild(bubble);
+  } else {
+    row.appendChild(bubble);
+    row.appendChild(avatar);
   }
 
-  msg.textContent = text;
-  chat.appendChild(msg);
+  chat.appendChild(row);
+  row.scrollIntoView({ behavior: "smooth" });
 
-  msg.scrollIntoView({ behavior: "smooth" });
-  return msg;
+  return bubble;
+}
+
+function showTyping() {
+  const row = document.createElement("div");
+  row.classList.add("row", "bot-row");
+
+  const avatar = document.createElement("div");
+  avatar.classList.add("avatar");
+
+  const bubble = document.createElement("div");
+  bubble.classList.add("bubble", "bot");
+
+  const typing = document.createElement("div");
+  typing.classList.add("typing");
+
+  for (let i = 0; i < 3; i++) {
+    const dot = document.createElement("div");
+    dot.classList.add("dot");
+    typing.appendChild(dot);
+  }
+
+  bubble.appendChild(typing);
+  row.appendChild(avatar);
+  row.appendChild(bubble);
+
+  chat.appendChild(row);
+  row.scrollIntoView({ behavior: "smooth" });
+
+  return row;
 }
 
 async function send() {
@@ -122,11 +217,10 @@ async function send() {
 
   if (!text) return;
 
-  addMessage(text, "user");
+  createMessage(text, "user");
   input.value = "";
 
-  // индикатор "печатает..."
-  const typingMsg = addMessage("печатает...", "bot", true);
+  const typingRow = showTyping();
 
   const res = await fetch("/chat", {
     method: "POST",
@@ -138,22 +232,19 @@ async function send() {
 
   const data = await res.json();
 
-  typingMsg.remove();
+  typingRow.remove();
 
   typeText(data.reply, "bot");
 }
 
-// эффект печати как в ChatGPT
 function typeText(text, sender) {
-  const msg = document.createElement("div");
-  msg.classList.add("message", sender);
-  chat.appendChild(msg);
+  const bubble = createMessage("", sender);
 
   let i = 0;
 
   function typing() {
     if (i < text.length) {
-      msg.textContent += text.charAt(i);
+      bubble.textContent += text[i];
       i++;
       setTimeout(typing, 15);
     }
