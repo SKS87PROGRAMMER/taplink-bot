@@ -6,7 +6,7 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-// 🔥 фикс для Taplink (iframe)
+// 🔥 iframe фикс (Taplink)
 app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.removeHeader("X-Frame-Options");
@@ -14,13 +14,13 @@ app.use((req, res, next) => {
   next();
 });
 
-// 📁 раздаём chat.html
+// 📁 статика
 app.use(express.static("public"));
 
-// 🧠 память пользователей (простая)
+// 🧠 память
 const userMemory = {};
 
-// 🟢 проверка сервера (для пинга)
+// 🟢 проверка
 app.get("/", (req, res) => {
   res.send("OK");
 });
@@ -44,26 +44,25 @@ app.post("/chat", async (req, res) => {
       content: message
     });
 
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
-        "Content-Type": "application/json"
+        "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://your-site.com",
+        "X-Title": "Chikoy App"
       },
       body: JSON.stringify({
-        // 🔥 более стабильная модель
-        model: "gpt-4.1-mini",
-        messages: userMemory[userId],
-        temperature: 0.7
+        // 🔥 стабильная модель OpenRouter
+        model: "openai/gpt-4.1-mini",
+        messages: userMemory[userId]
       })
     });
 
     const data = await response.json();
 
-    // 🔍 лог для отладки
-    console.log("OPENAI RESPONSE:", JSON.stringify(data, null, 2));
+    console.log("OPENROUTER:", JSON.stringify(data, null, 2));
 
-    // ❌ если ошибка от OpenAI
     if (data.error) {
       return res.json({
         reply: "Ошибка API 😢: " + data.error.message
@@ -72,7 +71,7 @@ app.post("/chat", async (req, res) => {
 
     const reply =
       data.choices?.[0]?.message?.content ||
-      "Не удалось получить ответ 😢";
+      "Нет ответа 😢";
 
     userMemory[userId].push({
       role: "assistant",
@@ -82,7 +81,7 @@ app.post("/chat", async (req, res) => {
     res.json({ reply });
 
   } catch (err) {
-    console.error("SERVER ERROR:", err);
+    console.error(err);
     res.json({ reply: "Ошибка сервера 😢" });
   }
 });
