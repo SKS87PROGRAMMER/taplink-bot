@@ -35,9 +35,11 @@ async function askAI(messages) {
         "X-Title": "Chikoy Chat"
       },
       body: JSON.stringify({
-  model: "openai/gpt-4o",
-  messages: messages
-})
+        model: "openai/gpt-4o", // ← можешь менять тут
+        messages: messages
+      })
+    });
+
     const data = await res.json();
 
     if (!data.choices) {
@@ -52,7 +54,6 @@ async function askAI(messages) {
     return "❌ Ошибка подключения к AI";
   }
 }
-
 // ===== API =====
 app.post("/api/chat", async (req, res) => {
   const userMessage = req.body.message;
