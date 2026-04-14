@@ -17,7 +17,7 @@ function addMessage(text, type, buttons = []) {
   div.className = "message " + type;
   div.innerText = text;
 
-  if (buttons.length > 0) {
+  if (buttons && buttons.length > 0) {
     const btnWrap = document.createElement("div");
     btnWrap.style.marginTop = "10px";
 
@@ -35,16 +35,28 @@ function addMessage(text, type, buttons = []) {
 
   chat.appendChild(div);
   chat.scrollTop = chat.scrollHeight;
+
+  return div;
 }
 
+// ✅ ИСПРАВЛЕННАЯ ИСТОРИЯ
 async function loadHistory() {
-  const res = await fetch("/api/history?user_id=" + userId);
-  const data = await res.json();
+  try {
+    const res = await fetch("/api/history?user_id=" + userId);
+    const data = await res.json();
 
-  data.forEach(m => {
-    addMessage(m.user, "user");
-    addMessage(m.bot, "bot", m.buttons || []);
-  });
+    if (!Array.isArray(data)) return;
+
+    data.forEach(m => {
+      if (m.role === "user") {
+        addMessage(m.content, "user");
+      } else if (m.role === "assistant") {
+        addMessage(m.content, "bot");
+      }
+    });
+  } catch (err) {
+    console.error("Ошибка загрузки истории:", err);
+  }
 }
 
 async function send() {
@@ -58,18 +70,25 @@ async function send() {
 
   const typing = addMessage("печатает...", "bot typing");
 
-  const res = await fetch("/api/chat", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({ message: text, user_id: userId })
-  });
+  try {
+    const res = await fetch("/api/chat", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ message: text, user_id: userId })
+    });
 
-  const data = await res.json();
+    const data = await res.json();
 
-  typing.remove();
-  addMessage(data.reply, "bot", data.buttons || []);
+    typing.remove();
+
+    addMessage(data.reply || "Ошибка ответа", "bot", data.buttons || []);
+  } catch (err) {
+    typing.remove();
+    addMessage("Ошибка соединения с сервером", "bot");
+    console.error(err);
+  }
 }
 
 document.getElementById("input").addEventListener("keypress", e => {
