@@ -121,23 +121,42 @@ function goBack() {
   window.location.href = "https://taplink.cc/chikoyapp";
 }
 
-function addMessage(text, type) {
+function addMessage(text, type, buttons = []) {
   const div = document.createElement("div");
   div.className = "message " + type;
   div.innerText = text;
+
+  // кнопки
+  if (buttons.length > 0) {
+    const btnWrap = document.createElement("div");
+    btnWrap.style.marginTop = "10px";
+
+    buttons.forEach(b => {
+      const btn = document.createElement("button");
+      btn.innerText = b.text;
+      btn.style.marginRight = "5px";
+      btn.style.marginTop = "5px";
+      btn.onclick = () => {
+        window.open(b.action, "_blank");
+      };
+      btnWrap.appendChild(btn);
+    });
+
+    div.appendChild(btnWrap);
+  }
+
   chat.appendChild(div);
   chat.scrollTop = chat.scrollHeight;
   return div;
 }
 
-// загрузка истории
 async function loadHistory() {
   const res = await fetch("/api/history");
   const data = await res.json();
 
   data.forEach(m => {
     addMessage(m.user, "user");
-    addMessage(m.bot, "bot");
+    addMessage(m.bot, "bot", m.buttons || []);
   });
 }
 
@@ -150,7 +169,6 @@ async function send() {
   addMessage(text, "user");
   input.value = "";
 
-  // typing эффект
   const typing = addMessage("печатает...", "bot typing");
 
   const res = await fetch("/api/chat", {
@@ -164,16 +182,14 @@ async function send() {
   const data = await res.json();
 
   typing.remove();
-  addMessage(data.reply, "bot");
+  addMessage(data.reply, "bot", data.buttons || []);
 }
 
-// enter
 document.getElementById("input").addEventListener("keypress", e => {
   if (e.key === "Enter") send();
 });
 
 loadHistory();
 </script>
-
 </body>
 </html>
