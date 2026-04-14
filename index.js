@@ -1,124 +1,236 @@
-import express from "express";
-import cors from "cors";
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Чат Чикой</title>
 
-const app = express();
-
-app.use(cors());
-app.use(express.json());
-app.use(express.static("public"));
-
-/* 🧠 память пользователей */
-const userMemory = {};
-
-/* 🔍 простой справочник */
-function findMatches(message) {
-  const text = message.toLowerCase();
-
-  if (text.includes("страх")) {
-    return [
-      {
-        category: "Автострахование",
-        companies: [
-          {
-            name: "АльфаСтрахование",
-            desc: "ОСАГО и КАСКО",
-            phone: "+79991234567",
-            site: "https://alfastrah.ru"
-          },
-          {
-            name: "Росгосстрах",
-            desc: "Все виды автострахования",
-            phone: "+79997654321",
-            site: "https://rgs.ru"
-          }
-        ]
-      }
-    ];
-  }
-
-  return [];
+<style>
+:root {
+  --msg-size: 18px;
 }
 
-/* 🤖 API */
-app.post("/chat", async (req, res) => {
-  try {
-    const { message, userId } = req.body;
+body {
+  margin: 0;
+  font-family: Arial;
+  background: #e5ddd5;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
 
-    if (!message || !userId) {
-      return res.json({ type: "text", reply: "Ошибка запроса" });
-    }
+/* 🔝 HEADER (ЗАКРЕПЛЁННЫЙ) */
+#header {
+  position: fixed;
+  top: 0;
+  width: 100%;
+  padding: 10px;
+  background: #cfd8df;
+  z-index: 1000;
+}
 
-    /* 🧠 создаём память */
-    if (!userMemory[userId]) {
-      userMemory[userId] = [];
-    }
+/* выравнивание */
+.header-inner {
+  max-width: 600px;
+  margin: 0 auto;
+}
 
-    /* сохраняем сообщение */
-    userMemory[userId].push({
-      role: "user",
-      content: message
-    });
+/* кнопка назад */
+.back-btn {
+  display: block;
+  width: 100%;
+  text-align: center;
+  background: #d9ccc2;
+  padding: 16px;
+  border-radius: 16px;
 
-    /* 🔍 сначала ищем в справочнике */
-    const matches = findMatches(message);
+  text-decoration: none;
+  color: black;
+  font-weight: 700;
+  font-size: 18px;
+  text-transform: uppercase;
 
-    if (matches.length > 0) {
-      return res.json({
-        type: "cards",
-        data: matches
-      });
-    }
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
 
-    /* 🧠 берём последние 10 сообщений */
-    const history = userMemory[userId].slice(-10);
+/* ⋯ */
+.menu-btn {
+  position: absolute;
+  right: 20px;
+  top: 20px;
+  font-size: 22px;
+  cursor: pointer;
+}
 
-    let reply = "Ошибка ИИ 😢";
+/* 💬 чат */
+#chat {
+  flex: 1;
+  overflow-y: auto;
+  padding: 15px;
+  max-width: 600px;
+  margin: 90px auto 0; /* отступ под фикс хедер */
+}
 
-    try {
-      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          model: "openai/gpt-4o-mini",
-          messages: [
-            {
-              role: "system",
-              content: "Ты помощник справочника. Учитывай предыдущие сообщения и отвечай по делу."
-            },
-            ...history
-          ]
-        })
-      });
+/* сообщения */
+.row {
+  display: flex;
+  align-items: flex-end;
+  margin: 8px 0;
 
-      const data = await response.json();
+  opacity: 0;
+  transform: translateY(10px) scale(0.98);
+  animation: messageIn 0.25s ease forwards;
+}
 
-      reply = data?.choices?.[0]?.message?.content || "Нет ответа";
+.user-row { justify-content: flex-end; }
+.bot-row { justify-content: flex-start; }
 
-    } catch (err) {
-      console.error("AI ERROR:", err);
-      reply = "ИИ временно недоступен 😢";
-    }
+.avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #ccc;
+  margin: 0 6px;
+}
 
-    /* сохраняем ответ */
-    userMemory[userId].push({
-      role: "assistant",
-      content: reply
-    });
+.bubble {
+  max-width: 75%;
+  padding: 14px 18px;
+  border-radius: 18px;
+  font-size: var(--msg-size);
+  line-height: 1.4;
+}
 
-    res.json({
-      type: "text",
-      reply
-    });
+.user {
+  background: #0088cc;
+  color: white;
+}
 
-  } catch (err) {
-    console.error("SERVER ERROR:", err);
-    res.json({ type: "text", reply: "Ошибка сервера 😢" });
+.bot {
+  background: white;
+}
+
+/* ✨ НОВАЯ АНИМАЦИЯ */
+@keyframes messageIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.96);
   }
-});
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
 
-/* 🚀 запуск */
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log("Server running on " + PORT));
+/* ввод */
+#inputArea {
+  display: flex;
+  padding: 10px;
+  background: #f0f0f0;
+}
+
+#input {
+  flex: 1;
+  padding: 14px;
+  border-radius: 22px;
+  border: none;
+  font-size: var(--msg-size);
+}
+
+button {
+  margin-left: 10px;
+  border: none;
+  background: #0088cc;
+  color: white;
+  padding: 14px 18px;
+  border-radius: 22px;
+  font-size: var(--msg-size);
+}
+</style>
+</head>
+
+<body>
+
+<!-- 🔝 HEADER -->
+<div id="header">
+  <div class="header-inner">
+    <a href="https://taplink.cc/chikoyapp" class="back-btn">НАЗАД</a>
+  </div>
+  <div class="menu-btn">⋯</div>
+</div>
+
+<!-- 💬 ЧАТ -->
+<div id="chat"></div>
+
+<!-- ⌨️ ВВОД -->
+<div id="inputArea">
+  <input id="input" placeholder="Сообщение..." />
+  <button onclick="send()">➤</button>
+</div>
+
+<script>
+const chat = document.getElementById("chat");
+
+/* 🧠 userId */
+let userId = localStorage.getItem("userId") || Date.now().toString();
+localStorage.setItem("userId", userId);
+
+/* сообщение */
+function createMessage(text, sender) {
+  const row = document.createElement("div");
+  row.classList.add("row", sender + "-row");
+
+  const avatar = document.createElement("div");
+  avatar.classList.add("avatar");
+
+  const bubble = document.createElement("div");
+  bubble.classList.add("bubble", sender);
+  bubble.textContent = text;
+
+  if (sender === "bot") {
+    row.appendChild(avatar);
+    row.appendChild(bubble);
+  } else {
+    row.appendChild(bubble);
+    row.appendChild(avatar);
+  }
+
+  chat.appendChild(row);
+
+  // гарантируем скролл вниз
+  setTimeout(() => {
+    row.scrollIntoView({ behavior: "smooth" });
+  }, 50);
+}
+
+/* отправка */
+async function send() {
+  const input = document.getElementById("input");
+  const text = input.value.trim();
+
+  if (!text) return;
+
+  createMessage(text, "user");
+  input.value = "";
+
+  const res = await fetch("/chat", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({
+      message: text,
+      userId: userId
+    })
+  });
+
+  const data = await res.json();
+
+  createMessage(data.reply, "bot");
+}
+
+document.getElementById("input").addEventListener("keypress", e => {
+  if (e.key === "Enter") send();
+});
+</script>
+
+</body>
+</html>
