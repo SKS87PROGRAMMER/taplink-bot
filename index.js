@@ -35,7 +35,7 @@ async function askAI(messages) {
         "X-Title": "Chikoy Chat"
       },
       body: JSON.stringify({
-        model: "openai/gpt-4o"
+        model: "gpt-4o-mini"
         messages: messages
       })
     });
