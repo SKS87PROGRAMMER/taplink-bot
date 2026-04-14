@@ -19,27 +19,12 @@ function saveDB(data) {
   fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
 }
 
-// ===== УМНЫЙ ПОИСК =====
-function findCompanySmart(query, companies) {
-  query = query.toLowerCase();
-
-  return companies.filter(c =>
-    c.name.toLowerCase().includes(query) ||
-    c.type.toLowerCase().includes(query)
-  );
-}
-
 // ===== AI (OPENROUTER) =====
-async function askAI(message, companies) {
+async function askAI(messages) {
   try {
     if (!process.env.OPENROUTER_API_KEY) {
       return "❌ Нет OPENROUTER_API_KEY";
     }
-
-    // добавляем базу в контекст
-    const companiesText = companies.map(c =>
-      `${c.name} (${c.type}) — ${c.address}, ${c.hours}, ${c.phone}`
-    ).join("\n");
 
     const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
@@ -47,36 +32,18 @@ async function askAI(message, companies) {
         "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
         "Content-Type": "application/json",
         "HTTP-Referer": "https://taplink.cc",
-        "X-Title": "Chikoy App"
+        "X-Title": "Chikoy Chat"
       },
       body: JSON.stringify({
         model: "openai/gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content:
-`Ты помощник справочника.
-
-Вот список компаний:
-${companiesText}
-
-Правила:
-- Если вопрос связан с компаниями — используй этот список
-- Отвечай кратко
-- Можешь рекомендовать`
-          },
-          {
-            role: "user",
-            content: message
-          }
-        ]
+        messages: messages
       })
     });
 
     const data = await res.json();
 
     if (!data.choices) {
-      console.log("OPENROUTER ERROR:", data);
+      console.log("AI ERROR:", data);
       return "⚠️ Ошибка AI (смотри логи)";
     }
 
@@ -93,42 +60,35 @@ app.post("/api/chat", async (req, res) => {
   const userMessage = req.body.message;
   const db = loadDB();
 
-  const found = findCompanySmart(userMessage, db.companies);
+  // последние 10 сообщений для контекста
+  const history = db.messages.slice(-10).flatMap(m => ([
+    { role: "user", content: m.user },
+    { role: "assistant", content: m.bot }
+  ]));
 
-  let reply;
-  let buttons = [];
+  const messages = [
+    {
+      role: "system",
+      content: "Ты дружелюбный чат-помощник. Отвечай просто, понятно и по делу."
+    },
+    ...history,
+    {
+      role: "user",
+      content: userMessage
+    }
+  ];
 
-  if (found.length > 0) {
-    const c = found[0];
-
-    reply =
-`🏢 ${c.name}
-📍 ${c.address}
-⏰ ${c.hours}
-📞 ${c.phone}`;
-
-    buttons = [
-      { text: "Позвонить", action: `tel:${c.phone}` },
-      { text: "Карта", action: `https://maps.google.com/?q=${encodeURIComponent(c.address)}` }
-    ];
-
-    db.lastCompany = c;
-
-  } else {
-    // AI с учетом базы
-    reply = await askAI(userMessage, db.companies);
-  }
+  const reply = await askAI(messages);
 
   db.messages.push({
     user: userMessage,
     bot: reply,
-    buttons,
     time: Date.now()
   });
 
   saveDB(db);
 
-  res.json({ reply, buttons });
+  res.json({ reply, buttons: [] });
 });
 
 // ===== ИСТОРИЯ =====
