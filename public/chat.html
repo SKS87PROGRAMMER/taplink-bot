@@ -1,218 +1,147 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Чат Чикой</title>
 
 <style>
-:root {
-  --msg-size: 18px; /* 🔥 крупный текст */
-}
-
 body {
   margin: 0;
   font-family: Arial;
-  background: #e5ddd5;
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-}
-
-/* 🔝 HEADER */
-#header {
-  padding: 10px;
-  background: #cfd8df;
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
-
-.header-inner {
-  max-width: 600px;
-  margin: 0 auto;
-}
-
-.back-btn {
-  display: block;
-  width: 100%;
-  text-align: center;
-  background: #d9ccc2;
-  padding: 16px;
-  border-radius: 16px;
-
-  text-decoration: none;
-  color: black;
-  font-weight: 700;
-  font-size: 18px;
-  text-transform: uppercase;
-
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-}
-
-/* ⋯ */
-.menu-btn {
-  position: absolute;
-  right: 20px;
-  top: 20px;
-  font-size: 22px;
-  cursor: pointer;
-}
-
-/* чат */
-#chat {
-  flex: 1;
-  overflow-y: auto;
-  padding: 15px;
-  max-width: 600px;
-  margin: 0 auto;
-}
-
-/* сообщения */
-.row {
-  display: flex;
-  align-items: flex-end;
-  margin: 6px 0;
-}
-
-.user-row { justify-content: flex-end; }
-.bot-row { justify-content: flex-start; }
-
-.avatar {
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  background: #ccc;
-  margin: 0 6px;
-}
-
-.bubble {
-  max-width: 75%;
-  padding: 14px 18px;
-  border-radius: 18px;
-  font-size: var(--msg-size);
-  animation: fadeIn 0.25s ease;
-}
-
-.user {
-  background: #0088cc;
+  background: #0f0f0f;
   color: white;
 }
 
+/* КНОПКА НАЗАД */
+.back {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  padding: 15px;
+  background: #1f1f1f;
+  text-align: center;
+  border-radius: 12px;
+  text-transform: uppercase;
+  font-weight: bold;
+  cursor: pointer;
+  z-index: 1000;
+}
+
+/* ЧАТ */
+.chat {
+  margin-top: 80px;
+  padding: 10px;
+}
+
+.message {
+  margin: 10px 0;
+  padding: 12px;
+  border-radius: 12px;
+  max-width: 80%;
+  animation: fadeIn 0.3s ease;
+}
+
+.user {
+  background: #2a2a2a;
+  margin-left: auto;
+}
+
 .bot {
-  background: white;
+  background: #1a1a1a;
 }
 
-/* ✨ анимация */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(8px) scale(0.98);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-/* ввод */
-#inputArea {
+/* ВВОД */
+.input-area {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
   display: flex;
   padding: 10px;
-  background: #f0f0f0;
+  background: #0f0f0f;
 }
 
-#input {
+input {
   flex: 1;
-  padding: 14px;
-  border-radius: 22px;
+  padding: 15px;
+  font-size: 16px;
+  border-radius: 10px;
   border: none;
-  font-size: var(--msg-size);
 }
 
 button {
   margin-left: 10px;
+  padding: 15px;
+  font-size: 16px;
+  border-radius: 10px;
   border: none;
-  background: #0088cc;
+  background: #4caf50;
   color: white;
-  padding: 14px 18px;
-  border-radius: 22px;
-  font-size: var(--msg-size);
+}
+
+/* АНИМАЦИЯ */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 </style>
 </head>
 
 <body>
 
-<div id="header">
-  <div class="header-inner">
-    <a href="https://taplink.cc/chikoyapp" class="back-btn">НАЗАД</a>
-  </div>
-  <div class="menu-btn">⋯</div>
-</div>
+<div class="back" onclick="goBack()">НАЗАД</div>
 
-<div id="chat"></div>
+<div class="chat" id="chat"></div>
 
-<div id="inputArea">
-  <input id="input" placeholder="Сообщение..." />
+<div class="input-area">
+  <input id="input" placeholder="Введите сообщение..." />
   <button onclick="send()">➤</button>
 </div>
 
 <script>
 const chat = document.getElementById("chat");
 
-let userId = localStorage.getItem("userId") || Date.now().toString();
-localStorage.setItem("userId", userId);
+function goBack() {
+  window.location.href = "https://taplink.cc/chikoyapp";
+}
 
-function createMessage(text, sender) {
-  const row = document.createElement("div");
-  row.classList.add("row", sender + "-row");
-
-  const avatar = document.createElement("div");
-  avatar.classList.add("avatar");
-
-  const bubble = document.createElement("div");
-  bubble.classList.add("bubble", sender);
-  bubble.textContent = text;
-
-  if (sender === "bot") {
-    row.appendChild(avatar);
-    row.appendChild(bubble);
-  } else {
-    row.appendChild(bubble);
-    row.appendChild(avatar);
-  }
-
-  chat.appendChild(row);
-  row.scrollIntoView({ behavior: "smooth" });
+function addMessage(text, type) {
+  const div = document.createElement("div");
+  div.className = "message " + type;
+  div.innerText = text;
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
 }
 
 async function send() {
   const input = document.getElementById("input");
-  const text = input.value.trim();
+  const text = input.value;
 
   if (!text) return;
 
-  createMessage(text, "user");
+  addMessage(text, "user");
   input.value = "";
 
-  const res = await fetch("/chat", {
+  const res = await fetch("/api/chat", {
     method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({
-      message: text,
-      userId: userId
-    })
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ message: text })
   });
 
   const data = await res.json();
 
-  createMessage(data.reply, "bot");
+  addMessage(data.reply, "bot");
 }
-
-document.getElementById("input").addEventListener("keypress", e => {
-  if (e.key === "Enter") send();
-});
 </script>
 
 </body>
