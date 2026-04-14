@@ -1,5 +1,6 @@
 import express from "express";
 import fs from "fs";
+import fetch from "node-fetch";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -18,7 +19,7 @@ function saveDB(data) {
   fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
 }
 
-// ===== ПОИСК =====
+// ===== УМНЫЙ ПОИСК =====
 function findCompanySmart(query, companies) {
   query = query.toLowerCase();
 
@@ -28,21 +29,41 @@ function findCompanySmart(query, companies) {
   );
 }
 
-// ===== AI =====
-async function askAI(message, context) {
+// ===== AI (OPENROUTER) =====
+async function askAI(message, companies) {
   try {
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    if (!process.env.OPENROUTER_API_KEY) {
+      return "❌ Нет OPENROUTER_API_KEY";
+    }
+
+    // добавляем базу в контекст
+    const companiesText = companies.map(c =>
+      `${c.name} (${c.type}) — ${c.address}, ${c.hours}, ${c.phone}`
+    ).join("\n");
+
+    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
-        "Content-Type": "application/json"
+        "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://taplink.cc",
+        "X-Title": "Chikoy App"
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
+        model: "openai/gpt-4o-mini",
         messages: [
           {
             role: "system",
-            content: "Ты умный помощник справочника компаний. Отвечай кратко и по делу."
+            content:
+`Ты помощник справочника.
+
+Вот список компаний:
+${companiesText}
+
+Правила:
+- Если вопрос связан с компаниями — используй этот список
+- Отвечай кратко
+- Можешь рекомендовать`
           },
           {
             role: "user",
@@ -53,9 +74,17 @@ async function askAI(message, context) {
     });
 
     const data = await res.json();
-    return data.choices?.[0]?.message?.content || "Ошибка AI 🤖";
+
+    if (!data.choices) {
+      console.log("OPENROUTER ERROR:", data);
+      return "⚠️ Ошибка AI (смотри логи)";
+    }
+
+    return data.choices[0].message.content;
+
   } catch (e) {
-    return "Ошибка подключения к AI 😕";
+    console.log("FETCH ERROR:", e);
+    return "❌ Ошибка подключения к AI";
   }
 }
 
@@ -80,14 +109,14 @@ app.post("/api/chat", async (req, res) => {
 
     buttons = [
       { text: "Позвонить", action: `tel:${c.phone}` },
-      { text: "Открыть карту", action: `https://maps.google.com/?q=${encodeURIComponent(c.address)}` }
+      { text: "Карта", action: `https://maps.google.com/?q=${encodeURIComponent(c.address)}` }
     ];
 
     db.lastCompany = c;
 
   } else {
-    // если не нашли — подключаем AI
-    reply = await askAI(userMessage, db.lastCompany);
+    // AI с учетом базы
+    reply = await askAI(userMessage, db.companies);
   }
 
   db.messages.push({
@@ -102,7 +131,7 @@ app.post("/api/chat", async (req, res) => {
   res.json({ reply, buttons });
 });
 
-// история
+// ===== ИСТОРИЯ =====
 app.get("/api/history", (req, res) => {
   const db = loadDB();
   res.json(db.messages.slice(-20));
