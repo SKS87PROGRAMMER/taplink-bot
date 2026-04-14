@@ -9,78 +9,97 @@ app.use(express.static("public"));
 
 const DB_FILE = "data.json";
 
-// загрузка базы
+// ===== БАЗА =====
 function loadDB() {
   return JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
 }
 
-// сохранение
 function saveDB(data) {
   fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
 }
 
-// поиск компании
-function findCompany(query, companies) {
+// ===== ПОИСК =====
+function findCompanySmart(query, companies) {
   query = query.toLowerCase();
 
-  return companies.find(c =>
+  return companies.filter(c =>
     c.name.toLowerCase().includes(query) ||
     c.type.toLowerCase().includes(query)
   );
 }
 
-// простой "ИИ"
-function generateSmartReply(message, lastCompany) {
-  const text = message.toLowerCase();
+// ===== AI =====
+async function askAI(message, context) {
+  try {
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: "Ты умный помощник справочника компаний. Отвечай кратко и по делу."
+          },
+          {
+            role: "user",
+            content: message
+          }
+        ]
+      })
+    });
 
-  // базовое общение
-  if (text.includes("привет")) return "Привет! 👋 Я помогу найти компанию или отвечу на вопросы.";
-  if (text.includes("спасибо")) return "Всегда пожалуйста 😊";
-  if (text.includes("как дела")) return "Отлично! Готов помочь 💪";
-
-  // работа с контекстом
-  if (lastCompany) {
-    if (text.includes("телефон")) return `📞 ${lastCompany.phone}`;
-    if (text.includes("адрес")) return `📍 ${lastCompany.address}`;
-    if (text.includes("время") || text.includes("часы")) return `⏰ ${lastCompany.hours}`;
+    const data = await res.json();
+    return data.choices?.[0]?.message?.content || "Ошибка AI 🤖";
+  } catch (e) {
+    return "Ошибка подключения к AI 😕";
   }
-
-  // fallback
-  return "Я могу найти компанию или подсказать информацию. Попробуй написать название или тип 👍";
 }
 
-// API
-app.post("/api/chat", (req, res) => {
+// ===== API =====
+app.post("/api/chat", async (req, res) => {
   const userMessage = req.body.message;
   const db = loadDB();
 
-  const company = findCompany(userMessage, db.companies);
+  const found = findCompanySmart(userMessage, db.companies);
 
   let reply;
+  let buttons = [];
 
-  if (company) {
+  if (found.length > 0) {
+    const c = found[0];
+
     reply =
-`🏢 ${company.name}
-📍 ${company.address}
-⏰ ${company.hours}
-📞 ${company.phone}`;
+`🏢 ${c.name}
+📍 ${c.address}
+⏰ ${c.hours}
+📞 ${c.phone}`;
 
-    // сохраняем как последний контекст
-    db.lastCompany = company;
+    buttons = [
+      { text: "Позвонить", action: `tel:${c.phone}` },
+      { text: "Открыть карту", action: `https://maps.google.com/?q=${encodeURIComponent(c.address)}` }
+    ];
+
+    db.lastCompany = c;
 
   } else {
-    reply = generateSmartReply(userMessage, db.lastCompany);
+    // если не нашли — подключаем AI
+    reply = await askAI(userMessage, db.lastCompany);
   }
 
   db.messages.push({
     user: userMessage,
     bot: reply,
+    buttons,
     time: Date.now()
   });
 
   saveDB(db);
 
-  res.json({ reply });
+  res.json({ reply, buttons });
 });
 
 // история
