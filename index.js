@@ -29,6 +29,26 @@ function findCompany(query, companies) {
   );
 }
 
+// простой "ИИ"
+function generateSmartReply(message, lastCompany) {
+  const text = message.toLowerCase();
+
+  // базовое общение
+  if (text.includes("привет")) return "Привет! 👋 Я помогу найти компанию или отвечу на вопросы.";
+  if (text.includes("спасибо")) return "Всегда пожалуйста 😊";
+  if (text.includes("как дела")) return "Отлично! Готов помочь 💪";
+
+  // работа с контекстом
+  if (lastCompany) {
+    if (text.includes("телефон")) return `📞 ${lastCompany.phone}`;
+    if (text.includes("адрес")) return `📍 ${lastCompany.address}`;
+    if (text.includes("время") || text.includes("часы")) return `⏰ ${lastCompany.hours}`;
+  }
+
+  // fallback
+  return "Я могу найти компанию или подсказать информацию. Попробуй написать название или тип 👍";
+}
+
 // API
 app.post("/api/chat", (req, res) => {
   const userMessage = req.body.message;
@@ -44,8 +64,12 @@ app.post("/api/chat", (req, res) => {
 📍 ${company.address}
 ⏰ ${company.hours}
 📞 ${company.phone}`;
+
+    // сохраняем как последний контекст
+    db.lastCompany = company;
+
   } else {
-    reply = "Ничего не найдено 😕 Попробуй название или тип (магазин, сервис)";
+    reply = generateSmartReply(userMessage, db.lastCompany);
   }
 
   db.messages.push({
@@ -59,7 +83,7 @@ app.post("/api/chat", (req, res) => {
   res.json({ reply });
 });
 
-// получить историю
+// история
 app.get("/api/history", (req, res) => {
   const db = loadDB();
   res.json(db.messages.slice(-20));
