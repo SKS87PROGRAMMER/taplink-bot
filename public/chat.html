@@ -1,12 +1,121 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Чат Чикой</title>
+
+<style>
+body {
+  margin: 0;
+  font-family: Arial;
+  background: #f5f7fb;
+  color: #111;
+}
+
+/* НАЗАД */
+.back {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  padding: 15px;
+  background: white;
+  text-align: center;
+  border-radius: 14px;
+  font-weight: bold;
+  text-transform: uppercase;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  z-index: 1000;
+}
+
+/* ЧАТ */
+.chat {
+  margin-top: 80px;
+  padding: 10px;
+}
+
+.message {
+  margin: 10px 0;
+  padding: 14px;
+  border-radius: 14px;
+  max-width: 80%;
+  font-size: 16px;
+  animation: fadeIn 0.3s ease;
+}
+
+.user {
+  background: #d2e3ff;
+  margin-left: auto;
+}
+
+.bot {
+  background: white;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+/* ВВОД */
+.input-area {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  padding: 10px;
+  background: #f5f7fb;
+}
+
+input {
+  flex: 1;
+  padding: 15px;
+  font-size: 16px;
+  border-radius: 12px;
+  border: 1px solid #ccc;
+}
+
+button {
+  margin-left: 10px;
+  padding: 15px;
+  font-size: 16px;
+  border-radius: 12px;
+  border: none;
+  background: #4caf50;
+  color: white;
+}
+
+/* typing */
+.typing {
+  font-style: italic;
+  opacity: 0.6;
+}
+
+/* анимация */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div class="back" onclick="goBack()">НАЗАД</div>
+
+<div class="chat" id="chat"></div>
+
+<div class="input-area">
+  <input id="input" placeholder="Введите сообщение..." />
+  <button onclick="send()">➤</button>
+</div>
+
 <script>
 const chat = document.getElementById("chat");
-
-// 🔐 генерим user_id
-let userId = localStorage.getItem("user_id");
-if (!userId) {
-  userId = crypto.randomUUID();
-  localStorage.setItem("user_id", userId);
-}
 
 function goBack() {
   window.location.href = "https://taplink.cc/chikoyapp";
@@ -17,7 +126,8 @@ function addMessage(text, type, buttons = []) {
   div.className = "message " + type;
   div.innerText = text;
 
-  if (buttons && buttons.length > 0) {
+  // кнопки
+  if (buttons.length > 0) {
     const btnWrap = document.createElement("div");
     btnWrap.style.marginTop = "10px";
 
@@ -26,7 +136,9 @@ function addMessage(text, type, buttons = []) {
       btn.innerText = b.text;
       btn.style.marginRight = "5px";
       btn.style.marginTop = "5px";
-      btn.onclick = () => window.open(b.action, "_blank");
+      btn.onclick = () => {
+        window.open(b.action, "_blank");
+      };
       btnWrap.appendChild(btn);
     });
 
@@ -35,28 +147,17 @@ function addMessage(text, type, buttons = []) {
 
   chat.appendChild(div);
   chat.scrollTop = chat.scrollHeight;
-
   return div;
 }
 
-// ✅ ИСПРАВЛЕННАЯ ИСТОРИЯ
 async function loadHistory() {
-  try {
-    const res = await fetch("/api/history?user_id=" + userId);
-    const data = await res.json();
+  const res = await fetch("/api/history");
+  const data = await res.json();
 
-    if (!Array.isArray(data)) return;
-
-    data.forEach(m => {
-      if (m.role === "user") {
-        addMessage(m.content, "user");
-      } else if (m.role === "assistant") {
-        addMessage(m.content, "bot");
-      }
-    });
-  } catch (err) {
-    console.error("Ошибка загрузки истории:", err);
-  }
+  data.forEach(m => {
+    addMessage(m.user, "user");
+    addMessage(m.bot, "bot", m.buttons || []);
+  });
 }
 
 async function send() {
@@ -70,25 +171,18 @@ async function send() {
 
   const typing = addMessage("печатает...", "bot typing");
 
-  try {
-    const res = await fetch("/api/chat", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ message: text, user_id: userId })
-    });
+  const res = await fetch("/api/chat", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ message: text })
+  });
 
-    const data = await res.json();
+  const data = await res.json();
 
-    typing.remove();
-
-    addMessage(data.reply || "Ошибка ответа", "bot", data.buttons || []);
-  } catch (err) {
-    typing.remove();
-    addMessage("Ошибка соединения с сервером", "bot");
-    console.error(err);
-  }
+  typing.remove();
+  addMessage(data.reply, "bot", data.buttons || []);
 }
 
 document.getElementById("input").addEventListener("keypress", e => {
@@ -97,3 +191,5 @@ document.getElementById("input").addEventListener("keypress", e => {
 
 loadHistory();
 </script>
+</body>
+</html>
