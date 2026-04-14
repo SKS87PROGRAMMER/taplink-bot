@@ -1,42 +1,70 @@
 import express from "express";
+import fs from "fs";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// чтобы принимать JSON
 app.use(express.json());
-
-// подключаем фронт
 app.use(express.static("public"));
 
-// простая "память" (временно)
-let messages = [];
+const DB_FILE = "data.json";
 
-// API чата
+// загрузка базы
+function loadDB() {
+  return JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
+}
+
+// сохранение
+function saveDB(data) {
+  fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
+}
+
+// поиск компании
+function findCompany(query, companies) {
+  query = query.toLowerCase();
+
+  return companies.find(c =>
+    c.name.toLowerCase().includes(query) ||
+    c.type.toLowerCase().includes(query)
+  );
+}
+
+// API
 app.post("/api/chat", (req, res) => {
   const userMessage = req.body.message;
+  const db = loadDB();
 
-  let reply = "Я пока думаю 🤔";
+  const company = findCompany(userMessage, db.companies);
 
-  // примитивный "умный справочник"
-  if (userMessage.toLowerCase().includes("магазин")) {
-    reply = "🛒 Магазин: Чикой Маркет\n📍 Адрес: центр города\n⏰ 09:00–21:00";
-  } else if (userMessage.toLowerCase().includes("сервис")) {
-    reply = "🔧 Сервис: Чикой Сервис\n📍 Ремонт техники\n📞 +7 XXX XXX";
+  let reply;
+
+  if (company) {
+    reply =
+`🏢 ${company.name}
+📍 ${company.address}
+⏰ ${company.hours}
+📞 ${company.phone}`;
   } else {
-    reply = "Попробуй спросить про: магазин или сервис";
+    reply = "Ничего не найдено 😕 Попробуй название или тип (магазин, сервис)";
   }
 
-  messages.push({ user: userMessage, bot: reply });
+  db.messages.push({
+    user: userMessage,
+    bot: reply,
+    time: Date.now()
+  });
+
+  saveDB(db);
 
   res.json({ reply });
 });
 
-// тест
-app.get("/api/test", (req, res) => {
-  res.json({ status: "ok" });
+// получить историю
+app.get("/api/history", (req, res) => {
+  const db = loadDB();
+  res.json(db.messages.slice(-20));
 });
 
 app.listen(PORT, () => {
-  console.log("Server started on port " + PORT);
+  console.log("Server started on " + PORT);
 });
