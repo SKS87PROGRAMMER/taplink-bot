@@ -1,5 +1,4 @@
 import express from "express";
-import fetch from "node-fetch";
 import cors from "cors";
 
 const app = express();
@@ -8,10 +7,10 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static("public"));
 
-/* 🧠 память */
+/* 🧠 память пользователей */
 const userMemory = {};
 
-/* тестовый справочник */
+/* 🔍 простой справочник */
 function findMatches(message) {
   const text = message.toLowerCase();
 
@@ -25,6 +24,12 @@ function findMatches(message) {
             desc: "ОСАГО и КАСКО",
             phone: "+79991234567",
             site: "https://alfastrah.ru"
+          },
+          {
+            name: "Росгосстрах",
+            desc: "Все виды автострахования",
+            phone: "+79997654321",
+            site: "https://rgs.ru"
           }
         ]
       }
@@ -34,19 +39,27 @@ function findMatches(message) {
   return [];
 }
 
+/* 🤖 API */
 app.post("/chat", async (req, res) => {
   try {
     const { message, userId } = req.body;
 
+    if (!message || !userId) {
+      return res.json({ type: "text", reply: "Ошибка запроса" });
+    }
+
+    /* 🧠 создаём память */
     if (!userMemory[userId]) {
       userMemory[userId] = [];
     }
 
+    /* сохраняем сообщение */
     userMemory[userId].push({
       role: "user",
       content: message
     });
 
+    /* 🔍 сначала ищем в справочнике */
     const matches = findMatches(message);
 
     if (matches.length > 0) {
@@ -56,40 +69,56 @@ app.post("/chat", async (req, res) => {
       });
     }
 
+    /* 🧠 берём последние 10 сообщений */
     const history = userMemory[userId].slice(-10);
 
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: "openai/gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content: "Ты помощник справочника. Учитывай прошлые сообщения."
-          },
-          ...history
-        ]
-      })
-    });
+    let reply = "Ошибка ИИ 😢";
 
-    const data = await response.json();
-    const reply = data.choices?.[0]?.message?.content || "Ничего не найдено";
+    try {
+      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: "openai/gpt-4o-mini",
+          messages: [
+            {
+              role: "system",
+              content: "Ты помощник справочника. Учитывай предыдущие сообщения и отвечай по делу."
+            },
+            ...history
+          ]
+        })
+      });
 
+      const data = await response.json();
+
+      reply = data?.choices?.[0]?.message?.content || "Нет ответа";
+
+    } catch (err) {
+      console.error("AI ERROR:", err);
+      reply = "ИИ временно недоступен 😢";
+    }
+
+    /* сохраняем ответ */
     userMemory[userId].push({
       role: "assistant",
       content: reply
     });
 
-    res.json({ type: "text", reply });
+    res.json({
+      type: "text",
+      reply
+    });
 
-  } catch (e) {
-    console.error(e);
+  } catch (err) {
+    console.error("SERVER ERROR:", err);
     res.json({ type: "text", reply: "Ошибка сервера 😢" });
   }
 });
 
-app.listen(3000, () => console.log("Server running"));
+/* 🚀 запуск */
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log("Server running on " + PORT));
