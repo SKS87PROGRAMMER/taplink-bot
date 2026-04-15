@@ -84,7 +84,32 @@ app.post("/api/chat", async (req, res) => {
     db.users[user_id] = [];
   }
 
-  let userHistory = db.users[user_id];
+  // ➕ пользователь
+  db.users[user_id].push({ role: "user", content: message });
+
+  // 🔥 сразу обрезаем
+  db.users[user_id] = trimHistory(db.users[user_id]);
+
+  const messages = db.users[user_id].map(m => ({
+    role: m.role,
+    content: m.content
+  }));
+
+  const reply = await askAI(messages);
+
+  // ➕ бот
+  db.users[user_id].push({ role: "assistant", content: reply });
+
+  // 🔥 снова обрезаем
+  db.users[user_id] = trimHistory(db.users[user_id]);
+
+  saveDB(db);
+
+  res.json({
+    reply: reply,
+    buttons: []
+  });
+});
 
   // ➕ пользователь
   userHistory.push({ role: "user", content: message });
