@@ -95,7 +95,7 @@ async function sendMessage() {
     const { data, error } = await supabase
       .from("faq")
       .select("*")
-      .or(orQuery)
+      .ilike("question", `%${text}%`)
       .limit(1);
 
     if (error) {
