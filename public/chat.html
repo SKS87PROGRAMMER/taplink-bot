@@ -135,7 +135,6 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      // 🔍 поиск в FAQ
       const { data, error } = await supabase
         .from("faq")
         .select("*");
@@ -157,35 +156,48 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       });
 
-      // ✅ если нашли
-      if (best && bestScore > 0) {
+      // ✅ нормальный порог
+      if (best && bestScore >= 6) {
         addMessage(best.answer, "bot");
         return;
       }
 
-      // 🤖 если не нашли → AI
+      // 🤖 AI
       addMessage("Думаю 🤔...", "bot");
 
-      const res = await fetch("https://taplink-bot-production.up.railway.app/ai", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ message: text })
-      });
+      try {
+        const res = await fetch("https://taplink-bot-production.up.railway.app/ai", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ message: text })
+        });
 
-      const aiData = await res.json();
+        if (!res.ok) {
+          throw new Error("Ошибка сервера");
+        }
 
-      addMessage(aiData.answer, "bot");
+        const aiData = await res.json();
 
-      // 💾 сохраняем ответ
-      await supabase
-        .from("unknown_questions")
-        .insert([{
-          text,
-          answer: aiData.answer,
-          status: "done"
-        }]);
+        if (!aiData.answer) {
+          throw new Error("Нет ответа от AI");
+        }
+
+        addMessage(aiData.answer, "bot");
+
+        await supabase
+          .from("unknown_questions")
+          .insert([{
+            text,
+            answer: aiData.answer,
+            status: "done"
+          }]);
+
+      } catch (err) {
+        console.error(err);
+        addMessage("AI временно недоступен 😢", "bot");
+      }
 
     } catch (e) {
       console.error(e);
