@@ -30,23 +30,29 @@ function normalize(text) {
     .trim();
 }
 
-function findAnswer(message, faq) {
-  if (!Array.isArray(faq)) return null;
+function normalize(text) {
+  return text
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, "")
+    .trim();
+}
 
+function findAnswer(message, faq) {
   const text = normalize(message);
-  const words = text.split(" ").filter(w => w.length > 2);
+  const words = text.split(" ");
 
   let bestMatch = null;
   let bestScore = 0;
 
   for (let item of faq) {
-    const q = normalize(item.q);
-
-    if (text === q) return item.a;
+    if (!item.tags) continue;
 
     let score = 0;
-    for (let word of words) {
-      if (q.includes(word)) score++;
+
+    for (let tag of item.tags) {
+      if (text.includes(tag)) {
+        score++;
+      }
     }
 
     if (score > bestScore) {
@@ -55,7 +61,7 @@ function findAnswer(message, faq) {
     }
   }
 
-  if (bestScore > 0) {
+  if (bestScore >= 1) {
     return bestMatch.a;
   }
 
@@ -65,14 +71,10 @@ function findAnswer(message, faq) {
 // ===== AI =====
 async function askAI(messages) {
   try {
-    if (!process.env.OPENROUTER_API_KEY) {
-      return "❌ Нет OPENROUTER_API_KEY";
-    }
-
     const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
@@ -82,6 +84,35 @@ async function askAI(messages) {
     });
 
     const data = await res.json();
+    return data.choices?.[0]?.message?.content || "";
+  } catch (err) {
+    return "";
+  }
+}
+
+async function generateTags(text) {
+  const prompt = `
+Выдели ключевые слова (теги) из текста.
+Ответ верни ТОЛЬКО списком через запятую.
+
+Пример:
+ремонт смартфонов → ремонт, смартфон, телефон, электроника
+
+Текст: ${text}
+`;
+
+  const res = await askAI([
+    { role: "user", content: prompt }
+  ]);
+
+  return res
+    .toLowerCase()
+    .split(",")
+    .map(t => t.trim())
+    .filter(t => t.length > 2);
+}
+
+    const data = await res.json();
     return data.choices?.[0]?.message?.content || "Ошибка AI";
   } catch (err) {
     return "Ошибка сервера";
@@ -89,7 +120,7 @@ async function askAI(messages) {
 }
 
 // ===== ОБУЧЕНИЕ =====
-app.post("/api/teach", (req, res) => {
+app.post("/api/teach", async (req, res) => {
   const { question, answer } = req.body;
 
   if (!question || !answer) {
@@ -100,14 +131,18 @@ app.post("/api/teach", (req, res) => {
 
   if (!db.faq) db.faq = [];
 
+  // 🧠 генерируем теги через AI
+  const tags = await generateTags(question);
+
   db.faq.push({
     q: question,
-    a: answer
+    a: answer,
+    tags: tags
   });
 
   saveDB(db);
 
-  res.json({ status: "ok" });
+  res.json({ status: "ok", tags });
 });
 
 // ===== ИСТОРИЯ =====
