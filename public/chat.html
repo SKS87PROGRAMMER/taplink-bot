@@ -250,31 +250,25 @@ async function send() {
   const typing = addMessage("", "bot", true);
 
   try {
-    // 1. ищем в базе
-    const smartReply = await findAnswerSmart(text);
+    // 🔍 поиск в таблице faq
+    const { data, error } = await supabase
+      .from("faq")
+      .select("*")
+      .ilike("question", `%${text}%`)
+      .limit(1);
 
     typing.remove();
 
-    if (smartReply) {
-      addMessage(smartReply, "bot");
+    if (error) {
+      addMessage("Ошибка базы", "bot");
       return;
     }
 
-    // 2. fallback на AI
-    const res = await fetch("/api/chat", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        message: text,
-        user_id: userId
-      })
-    });
-
-    const data = await res.json();
-
-    addMessage(data.reply || "Я пока не знаю 🤖", "bot");
+    if (data && data.length > 0) {
+      addMessage(data[0].answer, "bot");
+    } else {
+      addMessage("Ничего не найдено 😢", "bot");
+    }
 
   } catch (e) {
     typing.remove();
