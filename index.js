@@ -95,7 +95,36 @@ app.post("/api/chat", async (req, res) => {
     content: m.content
   }));
 
-  const reply = await askAI(messages);
+  // 🔎 ищем ответ в базе
+function findAnswer(message, faq) {
+  const text = message.toLowerCase();
+
+  for (let item of faq) {
+    const q = item.q.toLowerCase();
+
+    if (text.includes(q) || q.includes(text)) {
+      return item.a;
+    }
+  }
+
+  return null;
+}
+
+// проверяем FAQ
+const faqReply = findAnswer(message, db.faq || []);
+
+if (faqReply) {
+  userHistory.push({ role: "assistant", content: faqReply });
+  saveDB(db);
+
+  return res.json({
+    reply: faqReply,
+    buttons: []
+  });
+}
+
+// если не нашли — идём в AI
+const reply = await askAI(messages);
 
   // ➕ бот
   db.users[user_id].push({ role: "assistant", content: reply });
