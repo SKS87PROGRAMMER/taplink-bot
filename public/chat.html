@@ -104,18 +104,24 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function scoreMatch(words, item) {
-    let score = 0;
+  let score = 0;
 
-    const question = item.question.toLowerCase();
-    const tags = (item.tags || []).join(" ").toLowerCase();
+  const question = item.question.toLowerCase();
+  const tags = (item.tags || []).join(" ").toLowerCase();
 
-    words.forEach(w => {
-      if (question.includes(w)) score += 2;
-      if (tags.includes(w)) score += 1;
-    });
+  words.forEach(w => {
+    if (question.includes(w)) score += 3;
+    if (tags.includes(w)) score += 2;
 
-    return score;
-  }
+    // 💡 бонус за точное совпадение слова
+    if (question.split(" ").includes(w)) score += 2;
+  });
+
+  // 💡 бонус за длину совпадения
+  if (question.includes(words.join(" "))) score += 5;
+
+  return score;
+}
 
   async function sendMessage() {
     const text = input.value.trim();
@@ -162,8 +168,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // 💾 сохраняем вопрос
         await supabase
-          .from("unknown_questions")
-          .insert([{ text }]);
+  .from("unknown_questions")
+  .insert([{
+    text,
+    status: "new"
+  }]);
       }
 
     } catch (e) {
