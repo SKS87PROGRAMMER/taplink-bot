@@ -163,6 +163,43 @@ app.post("/api/chat", async (req, res) => {
   });
 });
 
+// ===== ПОЛУЧИТЬ FAQ =====
+app.get("/api/faq", (req, res) => {
+  const db = loadDB();
+  res.json(db.faq || []);
+});
+
+// ===== УДАЛИТЬ FAQ =====
+app.post("/api/faq/delete", (req, res) => {
+  const { index } = req.body;
+  const db = loadDB();
+
+  if (!db.faq) db.faq = [];
+
+  db.faq.splice(index, 1);
+
+  saveDB(db);
+
+  res.json({ status: "ok" });
+});
+
+// ===== РЕДАКТИРОВАТЬ FAQ =====
+app.post("/api/faq/update", (req, res) => {
+  const { index, question, answer } = req.body;
+  const db = loadDB();
+
+  if (!db.faq) db.faq = [];
+
+  db.faq[index] = {
+    q: question,
+    a: answer
+  };
+
+  saveDB(db);
+
+  res.json({ status: "ok" });
+});
+
 // ===== СТАРТ =====
 app.listen(PORT, () => {
   console.log("🚀 Server started on port " + PORT);
