@@ -6,22 +6,12 @@
   <title>Чат Чикой</title>
 
   <style>
-    body {
-      margin: 0;
-      font-family: Arial;
-      background: #f5f7fb;
-    }
+    body { margin: 0; font-family: Arial; background: #f5f7fb; }
 
     .back {
-      position: fixed;
-      top: 10px;
-      left: 10px;
-      right: 10px;
-      padding: 14px;
-      background: white;
-      text-align: center;
-      border-radius: 12px;
-      font-weight: bold;
+      position: fixed; top: 10px; left: 10px; right: 10px;
+      padding: 14px; background: white; text-align: center;
+      border-radius: 12px; font-weight: bold;
     }
 
     .chat {
@@ -32,14 +22,8 @@
       overflow-y: auto;
     }
 
-    .msg-row {
-      display: flex;
-      margin: 10px 0;
-    }
-
-    .user-row {
-      justify-content: flex-end;
-    }
+    .msg-row { display: flex; margin: 10px 0; }
+    .user-row { justify-content: flex-end; }
 
     .message {
       padding: 12px;
@@ -47,39 +31,26 @@
       max-width: 70%;
     }
 
-    .user {
-      background: #d2e3ff;
-    }
-
+    .user { background: #d2e3ff; }
     .bot {
       background: white;
       box-shadow: 0 2px 6px rgba(0,0,0,0.1);
     }
 
     .input-area {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      display: flex;
-      padding: 10px;
-      background: #f5f7fb;
+      position: fixed; bottom: 0; left: 0; right: 0;
+      display: flex; padding: 10px; background: #f5f7fb;
     }
 
     input {
-      flex: 1;
-      padding: 12px;
-      border-radius: 10px;
-      border: 1px solid #ccc;
+      flex: 1; padding: 12px;
+      border-radius: 10px; border: 1px solid #ccc;
     }
 
     button {
-      margin-left: 8px;
-      padding: 12px;
-      border: none;
-      border-radius: 10px;
-      background: #4caf50;
-      color: white;
+      margin-left: 8px; padding: 12px;
+      border: none; border-radius: 10px;
+      background: #4caf50; color: white;
     }
   </style>
 </head>
@@ -95,10 +66,8 @@
   <button id="sendBtn">➤</button>
 </div>
 
-<!-- ✅ СНАЧАЛА подключаем Supabase -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-<!-- ✅ ПОТОМ наш код -->
 <script>
 document.addEventListener("DOMContentLoaded", () => {
 
@@ -131,35 +100,60 @@ document.addEventListener("DOMContentLoaded", () => {
     addMessage(text, "user");
     input.value = "";
 
+    // 1️⃣ Сначала ищем в базе
+    const { data, error } = await supabase
+      .from("faq")
+      .select("*")
+      .ilike("question", "%" + text + "%")
+      .limit(1);
+
+    if (data && data.length > 0) {
+      addMessage(data[0].answer, "bot");
+      return;
+    }
+
+    // 2️⃣ Если нет — подключаем ИИ
+    const thinking = document.createElement("div");
+    thinking.className = "msg-row";
+    thinking.innerHTML = '<div class="message bot">Думаю...</div>';
+    chat.appendChild(thinking);
+    chat.scrollTop = chat.scrollHeight;
+
     try {
-      const { data, error } = await supabase
-        .from("faq")
-        .select("*")
-        .ilike("question", "%" + text + "%")
-        .limit(1);
+      const res = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer ВСТАВЬ_СЮДА_API_KEY"
+        },
+        body: JSON.stringify({
+          model: "gpt-4o-mini",
+          messages: [
+            {
+              role: "system",
+              content: "Ты помощник сервисного центра. Отвечай коротко и по делу."
+            },
+            { role: "user", content: text }
+          ]
+        })
+      });
 
-      if (error) {
-        addMessage("Ошибка базы", "bot");
-        console.error(error);
-        return;
-      }
+      const json = await res.json();
 
-      if (data.length > 0) {
-        addMessage(data[0].answer, "bot");
-      } else {
-        addMessage("Ничего не найдено 🤷‍♂️", "bot");
-      }
+      chat.removeChild(thinking);
+
+      const reply = json.choices?.[0]?.message?.content || "Ошибка ответа";
+      addMessage(reply, "bot");
 
     } catch (e) {
-      addMessage("Ошибка соединения", "bot");
+      chat.removeChild(thinking);
+      addMessage("Ошибка ИИ 😢", "bot");
       console.error(e);
     }
   }
 
-  // 🔥 ВАЖНО: обработчики
   button.addEventListener("click", sendMessage);
-
-  input.addEventListener("keypress", (e) => {
+  input.addEventListener("keypress", e => {
     if (e.key === "Enter") sendMessage();
   });
 
