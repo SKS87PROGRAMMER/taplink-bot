@@ -218,6 +218,11 @@ document.getElementById("input").addEventListener("keypress", e => {
 });
 
 loadHistory();
+
+  if (text.length > 50) {
+  alert("Слишком длинное сообщение");
+  return;
+}
 </script>
 </body>
 </html>
