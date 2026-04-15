@@ -138,3 +138,17 @@ app.post("/api/teach", (req, res) => {
 
   res.json({ status: "ok" });
 });
+
+function findAnswer(message, faq) {
+  const text = message.toLowerCase();
+
+  for (let item of faq) {
+    const q = item.q.toLowerCase();
+
+    if (text.includes(q) || q.includes(text)) {
+      return item.a;
+    }
+  }
+
+  return null;
+}
