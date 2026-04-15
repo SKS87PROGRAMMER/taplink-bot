@@ -97,45 +97,42 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   async function sendMessage() {
-    const text = input.value.trim();
-    if (!text) return;
+  const text = input.value.trim();
+  if (!text) return;
 
-    addMessage(text, "user");
-    input.value = "";
+  addMessage(text, "user");
+  input.value = "";
 
-    try {
-      const { data, error } = await supabase
-        .from("faq")
-        .select("*")
-        const words = text.toLowerCase().split(" ");
+  try {
+    const words = text.toLowerCase().split(" ");
 
-const { data } = await supabase
-  .from("faq")
-  .select("*")
-  .or(
-    words.map(w => `question.ilike.%${w}%`).join(",")
-  )
-  .limit(1);
-        .limit(1);
+    let query = supabase.from("faq").select("*");
 
-      if (error) {
-        console.error(error);
-        addMessage("Ошибка базы 😢", "bot");
-        return;
+    words.forEach(word => {
+      if (word.length > 1) {
+        query = query.ilike("question", "%" + word + "%");
       }
+    });
 
-      if (data && data.length > 0) {
-        addMessage(data[0].answer, "bot");
-      } else {
-        addMessage("Не нашёл ответ 😕", "bot");
-      }
+    const { data, error } = await query.limit(1);
 
-    } catch (e) {
-      console.error(e);
-      addMessage("Ошибка ответа 😢", "bot");
+    if (error) {
+      console.error(error);
+      addMessage("Ошибка базы 😢", "bot");
+      return;
     }
-  }
 
+    if (data && data.length > 0) {
+      addMessage(data[0].answer, "bot");
+    } else {
+      addMessage("Не нашёл ответ 😕", "bot");
+    }
+
+  } catch (e) {
+    console.error(e);
+    addMessage("Ошибка 😢", "bot");
+  }
+}
   button.addEventListener("click", sendMessage);
   input.addEventListener("keypress", e => {
     if (e.key === "Enter") sendMessage();
