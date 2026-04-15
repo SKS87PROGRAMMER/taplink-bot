@@ -38,7 +38,7 @@
       overflow-y: auto;
     }
 
-    /* строка сообщения */
+    /* строка */
     .msg-row {
       display: flex;
       align-items: flex-end;
@@ -56,6 +56,20 @@
       border-radius: 50%;
       margin: 0 8px;
       object-fit: cover;
+      position: relative;
+    }
+
+    /* онлайн точка */
+    .online::after {
+      content: "";
+      position: absolute;
+      bottom: 2px;
+      right: 2px;
+      width: 10px;
+      height: 10px;
+      background: #4caf50;
+      border-radius: 50%;
+      border: 2px solid white;
     }
 
     /* сообщение */
@@ -74,6 +88,22 @@
     .bot {
       background: white;
       box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    /* typing dots */
+    .dots::after {
+      content: "";
+      display: inline-block;
+      width: 20px;
+      text-align: left;
+      animation: dots 1.5s infinite;
+    }
+
+    @keyframes dots {
+      0% { content: ""; }
+      33% { content: "."; }
+      66% { content: ".."; }
+      100% { content: "..."; }
     }
 
     /* ВВОД */
@@ -103,11 +133,6 @@
       border: none;
       background: #4caf50;
       color: white;
-    }
-
-    .typing {
-      font-style: italic;
-      opacity: 0.6;
     }
 
     @keyframes fadeIn {
@@ -154,36 +179,29 @@
       window.location.href = "https://taplink.cc/chikoyapp";
     }
 
-    function addMessage(text, type, buttons = []) {
+    function addMessage(text, type, isTyping = false) {
       const row = document.createElement("div");
       row.className = "msg-row " + (type === "user" ? "user-row" : "");
 
       const avatar = document.createElement("img");
       avatar.className = "avatar";
 
-      // 👉 поменяй ссылки на свои при желании
       avatar.src = type === "user"
         ? "https://i.imgur.com/6VBx3io.png"
         : "https://i.imgur.com/4ZQZ4Zy.png";
 
+      // 🟢 онлайн только у бота
+      if (type === "bot") {
+        avatar.classList.add("online");
+      }
+
       const div = document.createElement("div");
       div.className = "message " + type;
-      div.innerText = text || "";
 
-      if (buttons && buttons.length > 0) {
-        const btnWrap = document.createElement("div");
-        btnWrap.style.marginTop = "10px";
-
-        buttons.forEach(b => {
-          const btn = document.createElement("button");
-          btn.innerText = b.text;
-          btn.style.marginRight = "5px";
-          btn.style.marginTop = "5px";
-          btn.onclick = () => window.open(b.action, "_blank");
-          btnWrap.appendChild(btn);
-        });
-
-        div.appendChild(btnWrap);
+      if (isTyping) {
+        div.innerHTML = 'печатает<span class="dots"></span>';
+      } else {
+        div.innerText = text || "";
       }
 
       if (type === "user") {
@@ -212,11 +230,7 @@
         if (!Array.isArray(data)) return;
 
         data.forEach(m => {
-          if (m.role === "user") {
-            addMessage(m.content, "user");
-          } else if (m.role === "assistant") {
-            addMessage(m.content, "bot");
-          }
+          addMessage(m.content, m.role === "user" ? "user" : "bot");
         });
       } catch (e) {
         console.log("history error", e);
@@ -232,7 +246,7 @@
       addMessage(text, "user");
       input.value = "";
 
-      const typing = addMessage("печатает...", "bot typing");
+      const typing = addMessage("", "bot", true);
 
       try {
         const res = await fetch("/api/chat", {
