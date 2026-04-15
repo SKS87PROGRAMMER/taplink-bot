@@ -96,55 +96,19 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   async function sendMessage() {
-    const text = input.value.trim();
-    if (!text) return;
+  const { data, error } = await supabase
+    .from("faq")
+    .select("*");
 
-    addMessage(text, "user");
-    input.value = "";
+  console.log("DATA:", data);
+  console.log("ERROR:", error);
 
-    try {
-      const words = text.toLowerCase().split(" ");
-      const filtered = words.filter(w => w.length > 1);
-
-      if (filtered.length === 0) {
-        addMessage("Напиши подробнее 🙏", "bot");
-        return;
-      }
-
-      // поиск по question (основной)
-      const orQuery = filtered
-        .map(w => `question.ilike.%${w}%`)
-        .join(",");
-
-      let query = supabase
-        .from("faq")
-        .select("*")
-        .or(orQuery);
-
-      // поиск по tags (дополнительно)
-      filtered.forEach(word => {
-        query = query.contains("tags", [word]);
-      });
-
-      const { data, error } = await query.limit(1);
-
-      if (error) {
-        console.error(error);
-        addMessage("Ошибка базы 😢", "bot");
-        return;
-      }
-
-      if (data && data.length > 0) {
-        addMessage(data[0].answer, "bot");
-      } else {
-        addMessage("Не нашёл ответ 😕", "bot");
-      }
-
-    } catch (e) {
-      console.error(e);
-      addMessage("Ошибка 😢", "bot");
-    }
+  if (error) {
+    addMessage("Ошибка базы 😢", "bot");
+  } else {
+    addMessage("Есть доступ к базе ✅", "bot");
   }
+}
 
   button.addEventListener("click", sendMessage);
   input.addEventListener("keydown", e => {
