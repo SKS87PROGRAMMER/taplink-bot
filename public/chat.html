@@ -12,6 +12,7 @@
       position: fixed; top: 10px; left: 10px; right: 10px;
       padding: 14px; background: white; text-align: center;
       border-radius: 12px; font-weight: bold;
+      cursor: pointer;
     }
 
     .chat {
@@ -51,6 +52,7 @@
       margin-left: 8px; padding: 12px;
       border: none; border-radius: 10px;
       background: #4caf50; color: white;
+      cursor: pointer;
     }
   </style>
 </head>
@@ -66,84 +68,15 @@
   <button id="sendBtn">➤</button>
 </div>
 
+<!-- Supabase -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-  <script>
-const SUPABASE_URL = "https://onjcxdjricgdfetwxnmg.supabase.co";
-const SUPABASE_KEY = "sb_publishable_bouNvhdKU7BF_9Y6_HMINg_FvVTtk4b";
-
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-async function sendMessage() {
-  const input = document.querySelector("input");
-  const text = input.value.trim();
-
-  if (!text) return;
-
-  addMessage(text, "user");
-  input.value = "";
-
-  try {
-    // 🔍 разбиваем на слова
-    const words = text.toLowerCase().split(" ");
-
-    // 🔥 ищем по question + tags
-    const orQuery = words
-      .map(w => `question.ilike.%${w}%,tags.cs.["${w}"]`)
-      .join(",");
-
-    const { data, error } = await supabase
-      .from("faq")
-      .select("*")
-      .ilike("question", `%${text}%`)
-      .limit(1);
-
-    if (error) {
-      console.error("Ошибка Supabase:", error);
-      addMessage("Ошибка ответа", "bot");
-      return;
-    }
-
-    if (data && data.length > 0) {
-      addMessage(data[0].answer, "bot");
-    } else {
-      addMessage("Не нашёл ответ 😕", "bot");
-    }
-
-  } catch (e) {
-    console.error("Ошибка:", e);
-    addMessage("Ошибка ответа", "bot");
-  }
-}
-
-// 👉 отправка по кнопке
-document.querySelector("button").addEventListener("click", sendMessage);
-
-// 👉 отправка по Enter
-document.querySelector("input").addEventListener("keypress", function(e) {
-  if (e.key === "Enter") sendMessage();
-});
-
-// 👉 отображение сообщений
-function addMessage(text, sender) {
-  const chat = document.querySelector(".chat");
-
-  const msg = document.createElement("div");
-  msg.className = sender === "user" ? "user-msg" : "bot-msg";
-  msg.innerText = text;
-
-  chat.appendChild(msg);
-  chat.scrollTop = chat.scrollHeight;
-}
-</script>
-  
 <script>
-  
 document.addEventListener("DOMContentLoaded", () => {
 
   const supabase = window.supabase.createClient(
     "https://onjcxdjricgdfetwxnmg.supabase.co",
-    "sb_publishable_bouNvhdKU7BF_9Y6_HMINg_FvVTtk4b"
+    "ТВОЙ_SUPABASE_KEY" // вставь свой ключ
   );
 
   const chat = document.getElementById("chat");
@@ -170,55 +103,28 @@ document.addEventListener("DOMContentLoaded", () => {
     addMessage(text, "user");
     input.value = "";
 
-    // 1️⃣ Сначала ищем в базе
-    const { data, error } = await supabase
-      .from("faq")
-      .select("*")
-      .ilike("question", "%" + text + "%")
-      .limit(1);
-
-    if (data && data.length > 0) {
-      addMessage(data[0].answer, "bot");
-      return;
-    }
-
-    // 2️⃣ Если нет — подключаем ИИ
-    const thinking = document.createElement("div");
-    thinking.className = "msg-row";
-    thinking.innerHTML = '<div class="message bot">Думаю...</div>';
-    chat.appendChild(thinking);
-    chat.scrollTop = chat.scrollHeight;
-
     try {
-      const res = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer sb_publishable_bouNvhdKU7BF_9Y6_HMINg_FvVTtk4b"
-        },
-        body: JSON.stringify({
-          model: "gpt-4o-mini",
-          messages: [
-            {
-              role: "system",
-              content: "Ты помощник сервисного центра. Отвечай коротко и по делу."
-            },
-            { role: "user", content: text }
-          ]
-        })
-      });
+      const { data, error } = await supabase
+        .from("faq")
+        .select("*")
+        .ilike("question", "%" + text + "%")
+        .limit(1);
 
-      const json = await res.json();
+      if (error) {
+        console.error(error);
+        addMessage("Ошибка базы 😢", "bot");
+        return;
+      }
 
-      chat.removeChild(thinking);
-
-      const reply = json.choices?.[0]?.message?.content || "Ошибка ответа";
-      addMessage(reply, "bot");
+      if (data && data.length > 0) {
+        addMessage(data[0].answer, "bot");
+      } else {
+        addMessage("Не нашёл ответ 😕", "bot");
+      }
 
     } catch (e) {
-      chat.removeChild(thinking);
-      addMessage("Ошибка ИИ 😢", "bot");
       console.error(e);
+      addMessage("Ошибка ответа 😢", "bot");
     }
   }
 
