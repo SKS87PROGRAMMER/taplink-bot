@@ -64,16 +64,23 @@ body {
   left: 0;
   right: 0;
   display: flex;
+  align-items: flex-end;
   padding: 10px;
   background: #f5f7fb;
+  gap: 10px;
 }
 
-input {
+input 
+  textarea {
   flex: 1;
-  padding: 15px;
+  padding: 12px;
   font-size: 16px;
   border-radius: 12px;
   border: 1px solid #ccc;
+  resize: none;
+  overflow: hidden;
+  max-height: 120px;
+  line-height: 1.4;
 }
 
 button {
@@ -113,7 +120,7 @@ button {
 <div class="chat" id="chat"></div>
 
 <div class="input-area">
-  <input id="input" placeholder="Введите сообщение..." />
+  <textarea id="input" placeholder="Введите сообщение..." rows="1"></textarea>
   <button onclick="send()">➤</button>
 </div>
 
@@ -194,6 +201,7 @@ async function send() {
 
   addMessage(text, "user");
   input.value = "";
+  input.style.height = "auto";
 
   const typing = addMessage("печатает...", "bot typing");
 
@@ -216,11 +224,21 @@ async function send() {
   }
 }
 
-document.getElementById("input").addEventListener("keypress", e => {
-  if (e.key === "Enter") send();
+textarea.addEventListener("keydown", e => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    send();
+  }
 });
 
 loadHistory();
+
+  const textarea = document.getElementById("input");
+
+textarea.addEventListener("input", () => {
+  textarea.style.height = "auto";
+  textarea.style.height = textarea.scrollHeight + "px";
+});
 
 </script>
 </body>
