@@ -1,69 +1,96 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Обучение бота</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Админка FAQ</title>
 
-  <style>
-    body {
-      margin: 0;
-      font-family: Arial;
-      background: #f5f7fb;
-      padding: 20px;
-    }
+<style>
+body {
+  font-family: Arial;
+  background: #f5f7fb;
+  padding: 20px;
+}
 
-    .card {
-      background: white;
-      padding: 20px;
-      border-radius: 16px;
-      max-width: 500px;
-      margin: auto;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    }
+.card {
+  background: white;
+  padding: 20px;
+  border-radius: 16px;
+  max-width: 600px;
+  margin: auto;
+}
 
-    textarea {
-      width: 100%;
-      padding: 12px;
-      margin-bottom: 10px;
-      border-radius: 10px;
-      border: 1px solid #ccc;
-    }
+textarea {
+  width: 100%;
+  margin-bottom: 10px;
+  padding: 10px;
+  border-radius: 10px;
+}
 
-    button {
-      width: 100%;
-      padding: 14px;
-      border: none;
-      border-radius: 10px;
-      background: #4caf50;
-      color: white;
-      font-size: 16px;
-    }
+button {
+  padding: 10px;
+  border: none;
+  border-radius: 10px;
+  margin: 3px;
+  cursor: pointer;
+}
 
-    .item {
-      background: #eef2ff;
-      padding: 10px;
-      border-radius: 10px;
-      margin-top: 10px;
-    }
-  </style>
+.save { background: #4caf50; color: white; }
+.delete { background: red; color: white; }
+.edit { background: orange; color: white; }
+
+.item {
+  background: #eef2ff;
+  padding: 10px;
+  border-radius: 10px;
+  margin-top: 10px;
+}
+</style>
 </head>
 
 <body>
 
 <div class="card">
-  <h2>Обучение 🤖</h2>
+  <h2>FAQ 🤖</h2>
 
   <textarea id="q" placeholder="Вопрос"></textarea>
   <textarea id="a" placeholder="Ответ"></textarea>
-
-  <button onclick="teach()">Обучить</button>
+  <button class="save" onclick="add()">Добавить</button>
 
   <div id="list"></div>
 </div>
 
 <script>
-async function teach() {
+let faq = [];
+let editIndex = null;
+
+async function load() {
+  const res = await fetch("/api/faq");
+  faq = await res.json();
+
+  render();
+}
+
+function render() {
+  const list = document.getElementById("list");
+  list.innerHTML = "";
+
+  faq.forEach((item, i) => {
+    const div = document.createElement("div");
+    div.className = "item";
+
+    div.innerHTML = `
+      <b>Q:</b> ${item.q}<br>
+      <b>A:</b> ${item.a}<br>
+      <button class="edit" onclick="edit(${i})">✏️</button>
+      <button class="delete" onclick="del(${i})">❌</button>
+    `;
+
+    list.appendChild(div);
+  });
+}
+
+async function add() {
   const q = document.getElementById("q").value;
   const a = document.getElementById("a").value;
 
@@ -75,18 +102,56 @@ async function teach() {
     body: JSON.stringify({ question: q, answer: a })
   });
 
-  add(q, a);
-
   document.getElementById("q").value = "";
   document.getElementById("a").value = "";
+
+  load();
 }
 
-function add(q, a) {
-  const div = document.createElement("div");
-  div.className = "item";
-  div.innerHTML = "<b>Q:</b> " + q + "<br><b>A:</b> " + a;
-  document.getElementById("list").prepend(div);
+function edit(i) {
+  const item = faq[i];
+
+  document.getElementById("q").value = item.q;
+  document.getElementById("a").value = item.a;
+
+  editIndex = i;
+
+  const btn = document.createElement("button");
+  btn.innerText = "💾 Сохранить изменения";
+  btn.className = "save";
+
+  btn.onclick = async () => {
+    const q = document.getElementById("q").value;
+    const a = document.getElementById("a").value;
+
+    await fetch("/api/faq/update", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({
+        index: editIndex,
+        question: q,
+        answer: a
+      })
+    });
+
+    editIndex = null;
+    load();
+  };
+
+  document.querySelector(".card").appendChild(btn);
 }
+
+async function del(i) {
+  await fetch("/api/faq/delete", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({ index: i })
+  });
+
+  load();
+}
+
+load();
 </script>
 
 </body>
