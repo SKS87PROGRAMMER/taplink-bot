@@ -12,6 +12,9 @@ const DB_FILE = "data.json";
 
 // ===== БАЗА =====
 function loadDB() {
+  if (!fs.existsSync(DB_FILE)) {
+    return { users: {}, faq: [] };
+  }
   return JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
 }
 
@@ -19,14 +22,44 @@ function saveDB(data) {
   fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
 }
 
-// ===== ОГРАНИЧЕНИЕ ПАМЯТИ =====
-const MAX_MESSAGES = 20;
+// ===== УМНЫЙ ПОИСК =====
+function normalize(text) {
+  return text
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, "")
+    .trim();
+}
 
-function trimHistory(history) {
-  if (history.length > MAX_MESSAGES) {
-    return history.slice(-MAX_MESSAGES);
+function findAnswer(message, faq) {
+  if (!Array.isArray(faq)) return null;
+
+  const text = normalize(message);
+  const words = text.split(" ").filter(w => w.length > 2);
+
+  let bestMatch = null;
+  let bestScore = 0;
+
+  for (let item of faq) {
+    const q = normalize(item.q);
+
+    if (text === q) return item.a;
+
+    let score = 0;
+    for (let word of words) {
+      if (q.includes(word)) score++;
+    }
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestMatch = item;
+    }
   }
-  return history;
+
+  if (bestScore > 0) {
+    return bestMatch.a;
+  }
+
+  return null;
 }
 
 // ===== AI =====
@@ -39,7 +72,7 @@ async function askAI(messages) {
     const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
@@ -49,28 +82,43 @@ async function askAI(messages) {
     });
 
     const data = await res.json();
-
     return data.choices?.[0]?.message?.content || "Ошибка AI";
   } catch (err) {
     return "Ошибка сервера";
   }
 }
 
-// ===== API =====
+// ===== ОБУЧЕНИЕ =====
+app.post("/api/teach", (req, res) => {
+  const { question, answer } = req.body;
 
-// история
+  if (!question || !answer) {
+    return res.json({ status: "error" });
+  }
+
+  const db = loadDB();
+
+  if (!db.faq) db.faq = [];
+
+  db.faq.push({
+    q: question,
+    a: answer
+  });
+
+  saveDB(db);
+
+  res.json({ status: "ok" });
+});
+
+// ===== ИСТОРИЯ =====
 app.get("/api/history", (req, res) => {
   const userId = req.query.user_id;
   const db = loadDB();
 
-  if (!db.users[userId]) {
-    return res.json([]);
-  }
-
-  res.json(db.users[userId]);
+  res.json(db.users[userId] || []);
 });
 
-// чат
+// ===== ЧАТ =====
 app.post("/api/chat", async (req, res) => {
   const { message, user_id } = req.body;
 
@@ -87,50 +135,25 @@ app.post("/api/chat", async (req, res) => {
   // ➕ пользователь
   db.users[user_id].push({ role: "user", content: message });
 
-  // 🔥 сразу обрезаем
-  db.users[user_id] = trimHistory(db.users[user_id]);
+  // 🔎 сначала ищем в FAQ
+  const faqReply = findAnswer(message, db.faq);
 
-  const messages = db.users[user_id].map(m => ({
-    role: m.role,
-    content: m.content
-  }));
+  if (faqReply) {
+    db.users[user_id].push({ role: "assistant", content: faqReply });
+    saveDB(db);
 
-  // 🔎 ищем ответ в базе
-function findAnswer(message, faq) {
-  const text = message.toLowerCase();
-
-  for (let item of faq) {
-    const q = item.q.toLowerCase();
-
-    if (text.includes(q) || q.includes(text)) {
-      return item.a;
-    }
+    return res.json({
+      reply: faqReply,
+      buttons: []
+    });
   }
 
-  return null;
-}
+  // 🤖 если нет — идём в AI
+  const messages = db.users[user_id];
 
-// проверяем FAQ
-const faqReply = findAnswer(message, db.faq || []);
+  const reply = await askAI(messages);
 
-if (faqReply) {
-  userHistory.push({ role: "assistant", content: faqReply });
-  saveDB(db);
-
-  return res.json({
-    reply: faqReply,
-    buttons: []
-  });
-}
-
-// если не нашли — идём в AI
-const reply = await askAI(messages);
-
-  // ➕ бот
   db.users[user_id].push({ role: "assistant", content: reply });
-
-  // 🔥 снова обрезаем
-  db.users[user_id] = trimHistory(db.users[user_id]);
 
   saveDB(db);
 
@@ -144,42 +167,3 @@ const reply = await askAI(messages);
 app.listen(PORT, () => {
   console.log("🚀 Server started on port " + PORT);
 });
-
-app.post("/api/teach", (req, res) => {
-  const { question, answer } = req.body;
-
-  if (!question || !answer) {
-    return res.json({ status: "error", message: "Нет данных" });
-  }
-
-  const db = loadDB();
-
-  if (!db.faq) {
-    db.faq = [];
-  }
-
-  db.faq.push({
-    q: question,
-    a: answer
-  });
-
-  saveDB(db);
-
-  res.json({ status: "ok" });
-});
-
-function findAnswer(message, faq) {
-  const text = message.toLowerCase();
-
-  for (let item of faq) {
-    const q = item.q.toLowerCase();
-
-    if (text.includes(q) || q.includes(text)) {
-      return item.a;
-    }
-  }
-
-  return null;
-}
-
-console.log("DB CONTENT:", loadDB());
