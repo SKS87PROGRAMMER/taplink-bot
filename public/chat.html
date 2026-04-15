@@ -68,7 +68,77 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
+  <script>
+const SUPABASE_URL = "https://onjcxdjricgdfetwxnmg.supabase.co";
+const SUPABASE_KEY = "sb_publishable_bouNvhdKU7BF_9Y6_HMINg_FvVTtk4b";
+
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+async function sendMessage() {
+  const input = document.querySelector("input");
+  const text = input.value.trim();
+
+  if (!text) return;
+
+  addMessage(text, "user");
+  input.value = "";
+
+  try {
+    // 🔍 разбиваем на слова
+    const words = text.toLowerCase().split(" ");
+
+    // 🔥 ищем по question + tags
+    const orQuery = words
+      .map(w => `question.ilike.%${w}%,tags.cs.["${w}"]`)
+      .join(",");
+
+    const { data, error } = await supabase
+      .from("faq")
+      .select("*")
+      .or(orQuery)
+      .limit(1);
+
+    if (error) {
+      console.error("Ошибка Supabase:", error);
+      addMessage("Ошибка ответа", "bot");
+      return;
+    }
+
+    if (data && data.length > 0) {
+      addMessage(data[0].answer, "bot");
+    } else {
+      addMessage("Не нашёл ответ 😕", "bot");
+    }
+
+  } catch (e) {
+    console.error("Ошибка:", e);
+    addMessage("Ошибка ответа", "bot");
+  }
+}
+
+// 👉 отправка по кнопке
+document.querySelector("button").addEventListener("click", sendMessage);
+
+// 👉 отправка по Enter
+document.querySelector("input").addEventListener("keypress", function(e) {
+  if (e.key === "Enter") sendMessage();
+});
+
+// 👉 отображение сообщений
+function addMessage(text, sender) {
+  const chat = document.querySelector(".chat");
+
+  const msg = document.createElement("div");
+  msg.className = sender === "user" ? "user-msg" : "bot-msg";
+  msg.innerText = text;
+
+  chat.appendChild(msg);
+  chat.scrollTop = chat.scrollHeight;
+}
+</script>
+  
 <script>
+  
 document.addEventListener("DOMContentLoaded", () => {
 
   const supabase = window.supabase.createClient(
