@@ -10,8 +10,6 @@
       margin: 0;
       font-family: Arial;
       background: #f5f7fb;
-      color: #111;
-      font-size: 18px;
     }
 
     .back {
@@ -19,62 +17,34 @@
       top: 10px;
       left: 10px;
       right: 10px;
-      padding: 16px;
+      padding: 14px;
       background: white;
       text-align: center;
-      border-radius: 14px;
+      border-radius: 12px;
       font-weight: bold;
-      text-transform: uppercase;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-      z-index: 1000;
     }
 
     .chat {
-      margin-top: 80px;
-      padding: 12px;
-      padding-bottom: 90px;
-      height: calc(100vh - 80px);
+      margin-top: 70px;
+      padding: 10px;
+      padding-bottom: 80px;
+      height: calc(100vh - 70px);
       overflow-y: auto;
     }
 
     .msg-row {
       display: flex;
-      align-items: flex-end;
-      margin: 12px 0;
+      margin: 10px 0;
     }
 
     .user-row {
       justify-content: flex-end;
     }
 
-    .avatar {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      margin: 0 8px;
-      object-fit: cover;
-      position: relative;
-    }
-
-    .online::after {
-      content: "";
-      position: absolute;
-      bottom: 2px;
-      right: 2px;
-      width: 10px;
-      height: 10px;
-      background: #4caf50;
-      border-radius: 50%;
-      border: 2px solid white;
-    }
-
     .message {
-      padding: 16px;
-      border-radius: 16px;
-      max-width: 75%;
-      font-size: 18px;
-      line-height: 1.5;
-      animation: fadeIn 0.3s ease;
+      padding: 12px;
+      border-radius: 12px;
+      max-width: 70%;
     }
 
     .user {
@@ -83,21 +53,7 @@
 
     .bot {
       background: white;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-    }
-
-    .dots::after {
-      content: "";
-      display: inline-block;
-      width: 24px;
-      animation: dots 1.5s infinite;
-    }
-
-    @keyframes dots {
-      0% { content: ""; }
-      33% { content: "."; }
-      66% { content: ".."; }
-      100% { content: "..."; }
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
     }
 
     .input-area {
@@ -106,39 +62,33 @@
       left: 0;
       right: 0;
       display: flex;
-      padding: 12px;
+      padding: 10px;
       background: #f5f7fb;
     }
 
     input {
       flex: 1;
-      padding: 16px;
-      font-size: 18px;
-      border-radius: 14px;
+      padding: 12px;
+      border-radius: 10px;
       border: 1px solid #ccc;
     }
 
     button {
-      margin-left: 10px;
-      padding: 16px 18px;
-      font-size: 18px;
-      border-radius: 14px;
+      margin-left: 8px;
+      padding: 12px;
       border: none;
+      border-radius: 10px;
       background: #4caf50;
       color: white;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(8px); }
-      to { opacity: 1; transform: translateY(0); }
     }
   </style>
 </head>
 
 <body>
 
-<div class="back" onclick="goBack()">НАЗАД</div>
-<div class="chat" id="chat"></div>
+<div class="back" onclick="location.href='https://taplink.cc/chikoyapp'">НАЗАД</div>
+
+<div id="chat" class="chat"></div>
 
 <div class="input-area">
   <input id="input" placeholder="Введите сообщение..." />
@@ -148,7 +98,6 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
-// 🔌 SUPABASE
 const supabase = window.supabase.createClient(
   "https://onjcxdjricgdfetwxnmg.supabase.co",
   "sb_publishable_bouNvhdKU7BF_9Y6_HMINg_FvVTtk4b"
@@ -156,127 +105,54 @@ const supabase = window.supabase.createClient(
 
 const chat = document.getElementById("chat");
 
-let userId = localStorage.getItem("user_id");
-if (!userId) {
-  userId = "user_" + Math.random().toString(36).substring(2, 10);
-  localStorage.setItem("user_id", userId);
-}
-
-// 🔙 назад
-function goBack() {
-  window.location.href = "https://taplink.cc/chikoyapp";
-}
-
-// 💬 сообщение
-function addMessage(text, type, isTyping = false) {
+function addMessage(text, type) {
   const row = document.createElement("div");
   row.className = "msg-row " + (type === "user" ? "user-row" : "");
 
-  const avatar = document.createElement("img");
-  avatar.className = "avatar";
-  avatar.src = type === "user"
-    ? "https://i.imgur.com/6VBx3io.png"
-    : "https://i.imgur.com/4ZQZ4Zy.png";
-
-  if (type === "bot") avatar.classList.add("online");
-
   const div = document.createElement("div");
   div.className = "message " + type;
+  div.innerText = text;
 
-  if (isTyping) {
-    div.innerHTML = 'печатает<span class="dots"></span>';
-  } else {
-    div.innerText = text || "";
-  }
-
-  if (type === "user") {
-    row.appendChild(div);
-    row.appendChild(avatar);
-  } else {
-    row.appendChild(avatar);
-    row.appendChild(div);
-  }
-
+  row.appendChild(div);
   chat.appendChild(row);
-  chat.scrollTo({ top: chat.scrollHeight, behavior: "smooth" });
 
-  return row;
+  chat.scrollTop = chat.scrollHeight;
 }
 
-// 🧠 УМНЫЙ ПОИСК
-async function findAnswerSmart(userText) {
-  const text = userText.toLowerCase();
-
-  const { data, error } = await supabase.from('faq').select('*');
-
-  if (error) {
-    console.error(error);
-    return null;
-  }
-
-  let best = null;
-  let bestScore = 0;
-
-  for (let item of data) {
-    let score = 0;
-
-    if (text.includes(item.question.toLowerCase())) score += 3;
-
-    if (item.tags) {
-      for (let tag of item.tags) {
-        if (text.includes(tag.toLowerCase())) score += 2;
-      }
-    }
-
-    if (score > bestScore) {
-      bestScore = score;
-      best = item;
-    }
-  }
-
-  return bestScore > 0 ? best.answer : null;
-}
-
-// 🚀 ОТПРАВКА
 async function send() {
   const input = document.getElementById("input");
-  const text = input.value;
+  let text = input.value.trim();
 
-  if (!text.trim()) return;
+  if (!text) return;
 
   addMessage(text, "user");
   input.value = "";
 
-  const typing = addMessage("", "bot", true);
-
   try {
-    // 🔍 поиск в таблице faq
     const { data, error } = await supabase
       .from("faq")
       .select("*")
-      .ilike("question", `%${text}%`)
+      .ilike("question", "%" + text + "%")
       .limit(1);
 
-    typing.remove();
-
     if (error) {
-      addMessage("Ошибка базы", "bot");
+      addMessage("Ошибка базы данных", "bot");
+      console.error(error);
       return;
     }
 
-    if (data && data.length > 0) {
+    if (data.length > 0) {
       addMessage(data[0].answer, "bot");
     } else {
-      addMessage("Ничего не найдено 😢", "bot");
+      addMessage("Ничего не найдено 🤷‍♂️", "bot");
     }
 
   } catch (e) {
-    typing.remove();
     addMessage("Ошибка соединения", "bot");
+    console.error(e);
   }
 }
 
-// Enter
 document.getElementById("input").addEventListener("keypress", e => {
   if (e.key === "Enter") send();
 });
