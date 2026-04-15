@@ -156,7 +156,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       });
 
-      // ✅ нормальный порог
       if (best && bestScore >= 6) {
         addMessage(best.answer, "bot");
         return;
@@ -174,25 +173,30 @@ document.addEventListener("DOMContentLoaded", () => {
           body: JSON.stringify({ message: text })
         });
 
-        if (!res.ok) {
-          throw new Error("Ошибка сервера");
-        }
+        if (!res.ok) throw new Error("Ошибка сервера");
 
         const aiData = await res.json();
-
-        if (!aiData.answer) {
-          throw new Error("Нет ответа от AI");
-        }
+        if (!aiData.answer) throw new Error("Нет ответа");
 
         addMessage(aiData.answer, "bot");
 
-        await supabase
-          .from("unknown_questions")
-          .insert([{
-            text,
+        // 💾 сохраняем вопрос
+        await supabase.from("unknown_questions").insert([{
+          text,
+          answer: aiData.answer,
+          status: "new"
+        }]);
+
+        // 🔥 проверка на дубли
+        const exists = data.find(item => item.question === text);
+
+        if (!exists) {
+          await supabase.from("faq").insert([{
+            question: text,
             answer: aiData.answer,
-            status: "done"
+            tags: words
           }]);
+        }
 
       } catch (err) {
         console.error(err);
