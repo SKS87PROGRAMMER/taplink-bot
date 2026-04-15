@@ -1,30 +1,34 @@
 import express from "express";
 import cors from "cors";
+import path from "path";
 
 const app = express();
+
 app.use(cors());
 app.use(express.json());
 
-// ОБЯЗАТЕЛЬНО для Railway
+// 🔥 ВАЖНО — раздача файлов
+app.use(express.static("public"));
+
 const PORT = process.env.PORT || 3000;
 
-// тест
+// главная
 app.get("/", (req, res) => {
   res.send("Server is running 🚀");
 });
 
 // AI endpoint
 app.post("/ai", async (req, res) => {
-  const { message } = req.body;
-
   try {
-    // пока простой ответ (проверка работы)
-    const answer = "Ты спросил: " + message;
+    const { message } = req.body;
+
+    const answer = "AI думает 🤖: " + message;
 
     res.json({ answer });
+
   } catch (err) {
     console.error(err);
-    res.status(500).json({ answer: "Ошибка сервера 😢" });
+    res.status(500).json({ answer: "Ошибка 😢" });
   }
 });
 
