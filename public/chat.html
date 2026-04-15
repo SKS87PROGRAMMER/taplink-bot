@@ -104,24 +104,21 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function scoreMatch(words, item) {
-  let score = 0;
+    let score = 0;
 
-  const question = item.question.toLowerCase();
-  const tags = (item.tags || []).join(" ").toLowerCase();
+    const question = item.question.toLowerCase();
+    const tags = (item.tags || []).join(" ").toLowerCase();
 
-  words.forEach(w => {
-    if (question.includes(w)) score += 3;
-    if (tags.includes(w)) score += 2;
+    words.forEach(w => {
+      if (question.includes(w)) score += 3;
+      if (tags.includes(w)) score += 2;
+      if (question.split(" ").includes(w)) score += 2;
+    });
 
-    // 💡 бонус за точное совпадение слова
-    if (question.split(" ").includes(w)) score += 2;
-  });
+    if (question.includes(words.join(" "))) score += 5;
 
-  // 💡 бонус за длину совпадения
-  if (question.includes(words.join(" "))) score += 5;
-
-  return score;
-}
+    return score;
+  }
 
   async function sendMessage() {
     const text = input.value.trim();
@@ -138,7 +135,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      // 🔥 берём ВСЕ FAQ
+      // 🔍 поиск в FAQ
       const { data, error } = await supabase
         .from("faq")
         .select("*");
@@ -149,7 +146,6 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      // 🧠 считаем лучший ответ
       let best = null;
       let bestScore = 0;
 
@@ -161,19 +157,35 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       });
 
+      // ✅ если нашли
       if (best && bestScore > 0) {
         addMessage(best.answer, "bot");
-      } else {
-        addMessage("Я пока не знаю 🤔, но скоро научусь!", "bot");
-
-        // 💾 сохраняем вопрос
-        await supabase
-  .from("unknown_questions")
-  .insert([{
-    text,
-    status: "new"
-  }]);
+        return;
       }
+
+      // 🤖 если не нашли → AI
+      addMessage("Думаю 🤔...", "bot");
+
+      const res = await fetch("https://taplink-bot-production.up.railway.app/ai", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ message: text })
+      });
+
+      const aiData = await res.json();
+
+      addMessage(aiData.answer, "bot");
+
+      // 💾 сохраняем ответ
+      await supabase
+        .from("unknown_questions")
+        .insert([{
+          text,
+          answer: aiData.answer,
+          status: "done"
+        }]);
 
     } catch (e) {
       console.error(e);
