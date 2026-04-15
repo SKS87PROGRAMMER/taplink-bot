@@ -31,25 +31,44 @@
 
     /* ЧАТ */
     .chat {
-  margin-top: 80px;
-  padding: 10px;
-  padding-bottom: 80px; /* 👈 ВАЖНО */
-  height: calc(100vh - 80px);
-  overflow-y: auto;
-}
+      margin-top: 80px;
+      padding: 10px;
+      padding-bottom: 80px;
+      height: calc(100vh - 80px);
+      overflow-y: auto;
+    }
 
-    .message {
+    /* строка сообщения */
+    .msg-row {
+      display: flex;
+      align-items: flex-end;
       margin: 10px 0;
+    }
+
+    .user-row {
+      justify-content: flex-end;
+    }
+
+    /* аватар */
+    .avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      margin: 0 8px;
+      object-fit: cover;
+    }
+
+    /* сообщение */
+    .message {
       padding: 14px;
       border-radius: 14px;
-      max-width: 80%;
+      max-width: 70%;
       font-size: 16px;
       animation: fadeIn 0.3s ease;
     }
 
     .user {
       background: #d2e3ff;
-      margin-left: auto;
     }
 
     .bot {
@@ -59,16 +78,14 @@
 
     /* ВВОД */
     .input-area {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  display: flex;
-  padding: 10px;
-  background: #f5f7fb;
-  height: 70px; /* 👈 фикс */
-  box-sizing: border-box;
-}
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      display: flex;
+      padding: 10px;
+      background: #f5f7fb;
+    }
 
     input {
       flex: 1;
@@ -88,13 +105,11 @@
       color: white;
     }
 
-    /* typing */
     .typing {
       font-style: italic;
       opacity: 0.6;
     }
 
-    /* анимация */
     @keyframes fadeIn {
       from {
         opacity: 0;
@@ -122,7 +137,6 @@
   <script>
     const chat = document.getElementById("chat");
 
-    // 🔐 безопасный user_id
     let userId;
 
     try {
@@ -141,6 +155,17 @@
     }
 
     function addMessage(text, type, buttons = []) {
+      const row = document.createElement("div");
+      row.className = "msg-row " + (type === "user" ? "user-row" : "");
+
+      const avatar = document.createElement("img");
+      avatar.className = "avatar";
+
+      // 👉 поменяй ссылки на свои при желании
+      avatar.src = type === "user"
+        ? "https://i.imgur.com/6VBx3io.png"
+        : "https://i.imgur.com/4ZQZ4Zy.png";
+
       const div = document.createElement("div");
       div.className = "message " + type;
       div.innerText = text || "";
@@ -161,13 +186,24 @@
         div.appendChild(btnWrap);
       }
 
-      chat.appendChild(div);
-      chat.scrollTop = chat.scrollHeight;
+      if (type === "user") {
+        row.appendChild(div);
+        row.appendChild(avatar);
+      } else {
+        row.appendChild(avatar);
+        row.appendChild(div);
+      }
 
-      return div;
+      chat.appendChild(row);
+
+      chat.scrollTo({
+        top: chat.scrollHeight,
+        behavior: "smooth"
+      });
+
+      return row;
     }
 
-    // история
     async function loadHistory() {
       try {
         const res = await fetch("/api/history?user_id=" + userId);
@@ -191,7 +227,7 @@
       const input = document.getElementById("input");
       const text = input.value;
 
-      if (!text) return;
+      if (!text.trim()) return;
 
       addMessage(text, "user");
       input.value = "";
