@@ -107,7 +107,15 @@ document.addEventListener("DOMContentLoaded", () => {
       const { data, error } = await supabase
         .from("faq")
         .select("*")
-        .ilike("question", "%" + text + "%")
+        const words = text.toLowerCase().split(" ");
+
+const { data } = await supabase
+  .from("faq")
+  .select("*")
+  .or(
+    words.map(w => `question.ilike.%${w}%`).join(",")
+  )
+  .limit(1);
         .limit(1);
 
       if (error) {
