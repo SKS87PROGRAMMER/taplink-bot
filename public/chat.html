@@ -95,6 +95,28 @@ document.addEventListener("DOMContentLoaded", () => {
     chat.scrollTop = chat.scrollHeight;
   }
 
+  function normalize(text) {
+    return text
+      .toLowerCase()
+      .replace(/[^\w\sа-яё]/gi, "")
+      .split(" ")
+      .filter(w => w.length > 2);
+  }
+
+  function scoreMatch(words, item) {
+    let score = 0;
+
+    const question = item.question.toLowerCase();
+    const tags = (item.tags || []).join(" ").toLowerCase();
+
+    words.forEach(w => {
+      if (question.includes(w)) score += 2;
+      if (tags.includes(w)) score += 1;
+    });
+
+    return score;
+  }
+
   async function sendMessage() {
     const text = input.value.trim();
     if (!text) return;
@@ -103,36 +125,17 @@ document.addEventListener("DOMContentLoaded", () => {
     input.value = "";
 
     try {
-      const words = text.toLowerCase().split(" ").filter(w => w.length > 1);
+      const words = normalize(text);
 
       if (words.length === 0) {
         addMessage("Напиши подробнее 🙏", "bot");
         return;
       }
 
-      // 🔍 поиск по question
-      let { data, error } = await supabase
+      // 🔥 берём ВСЕ FAQ
+      const { data, error } = await supabase
         .from("faq")
-        .select("*")
-        .or(words.map(w => `question.ilike.%${w}%`).join(","))
-        .limit(1);
-
-      // 🔁 если не нашли — ищем по tags
-      if (!data || data.length === 0) {
-        const { data: tagData, error: tagError } = await supabase
-          .from("faq")
-          .select("*")
-          .overlaps("tags", words)
-          .limit(1);
-
-        if (tagError) {
-          console.error(tagError);
-          addMessage("Ошибка базы 😢", "bot");
-          return;
-        }
-
-        data = tagData;
-      }
+        .select("*");
 
       if (error) {
         console.error(error);
@@ -140,10 +143,27 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      if (data && data.length > 0) {
-        addMessage(data[0].answer, "bot");
+      // 🧠 считаем лучший ответ
+      let best = null;
+      let bestScore = 0;
+
+      data.forEach(item => {
+        const s = scoreMatch(words, item);
+        if (s > bestScore) {
+          bestScore = s;
+          best = item;
+        }
+      });
+
+      if (best && bestScore > 0) {
+        addMessage(best.answer, "bot");
       } else {
-        addMessage("Не нашёл ответ 😕", "bot");
+        addMessage("Я пока не знаю 🤔, но скоро научусь!", "bot");
+
+        // 💾 сохраняем вопрос
+        await supabase
+          .from("unknown_questions")
+          .insert([{ text }]);
       }
 
     } catch (e) {
