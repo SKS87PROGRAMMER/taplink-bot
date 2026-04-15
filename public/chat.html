@@ -117,6 +117,21 @@ button {
 <script>
 const chat = document.getElementById("chat");
 
+// 🔐 безопасный user_id
+let userId;
+
+try {
+  userId = localStorage.getItem("user_id");
+
+  if (!userId) {
+    userId = "user_" + Math.random().toString(36).substring(2, 10);
+    localStorage.setItem("user_id", userId);
+  }
+} catch (e) {
+  // fallback если localStorage недоступен
+  userId = "user_" + Math.random().toString(36).substring(2, 10);
+}
+
 function goBack() {
   window.location.href = "https://taplink.cc/chikoyapp";
 }
@@ -124,10 +139,9 @@ function goBack() {
 function addMessage(text, type, buttons = []) {
   const div = document.createElement("div");
   div.className = "message " + type;
-  div.innerText = text;
+  div.innerText = text || "";
 
-  // кнопки
-  if (buttons.length > 0) {
+  if (buttons && buttons.length > 0) {
     const btnWrap = document.createElement("div");
     btnWrap.style.marginTop = "10px";
 
@@ -136,9 +150,7 @@ function addMessage(text, type, buttons = []) {
       btn.innerText = b.text;
       btn.style.marginRight = "5px";
       btn.style.marginTop = "5px";
-      btn.onclick = () => {
-        window.open(b.action, "_blank");
-      };
+      btn.onclick = () => window.open(b.action, "_blank");
       btnWrap.appendChild(btn);
     });
 
@@ -147,17 +159,28 @@ function addMessage(text, type, buttons = []) {
 
   chat.appendChild(div);
   chat.scrollTop = chat.scrollHeight;
+
   return div;
 }
 
+// ✅ новая история
 async function loadHistory() {
-  const res = await fetch("/api/history");
-  const data = await res.json();
+  try {
+    const res = await fetch("/api/history?user_id=" + userId);
+    const data = await res.json();
 
-  data.forEach(m => {
-    addMessage(m.user, "user");
-    addMessage(m.bot, "bot", m.buttons || []);
-  });
+    if (!Array.isArray(data)) return;
+
+    data.forEach(m => {
+      if (m.role === "user") {
+        addMessage(m.content, "user");
+      } else if (m.role === "assistant") {
+        addMessage(m.content, "bot");
+      }
+    });
+  } catch (e) {
+    console.log("history error", e);
+  }
 }
 
 async function send() {
@@ -171,18 +194,23 @@ async function send() {
 
   const typing = addMessage("печатает...", "bot typing");
 
-  const res = await fetch("/api/chat", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({ message: text })
-  });
+  try {
+    const res = await fetch("/api/chat", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ message: text, user_id: userId })
+    });
 
-  const data = await res.json();
+    const data = await res.json();
 
-  typing.remove();
-  addMessage(data.reply, "bot", data.buttons || []);
+    typing.remove();
+    addMessage(data.reply || "Ошибка", "bot");
+  } catch (e) {
+    typing.remove();
+    addMessage("Ошибка соединения", "bot");
+  }
 }
 
 document.getElementById("input").addEventListener("keypress", e => {
