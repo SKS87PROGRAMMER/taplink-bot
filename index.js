@@ -115,3 +115,26 @@ app.post("/api/chat", async (req, res) => {
 app.listen(PORT, () => {
   console.log("🚀 Server started on port " + PORT);
 });
+
+app.post("/api/teach", (req, res) => {
+  const { question, answer } = req.body;
+
+  if (!question || !answer) {
+    return res.json({ status: "error", message: "Нет данных" });
+  }
+
+  const db = loadDB();
+
+  if (!db.faq) {
+    db.faq = [];
+  }
+
+  db.faq.push({
+    q: question,
+    a: answer
+  });
+
+  saveDB(db);
+
+  res.json({ status: "ok" });
+});
