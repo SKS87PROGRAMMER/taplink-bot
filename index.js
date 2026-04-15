@@ -111,33 +111,6 @@ app.post("/api/chat", async (req, res) => {
   });
 });
 
-  // ➕ пользователь
-  userHistory.push({ role: "user", content: message });
-
-  userHistory = trimHistory(userHistory);
-
-  const messages = userHistory.map(m => ({
-    role: m.role,
-    content: m.content
-  }));
-
-  const reply = await askAI(messages);
-
-  // ➕ бот
-  userHistory.push({ role: "assistant", content: reply });
-
-  userHistory = trimHistory(userHistory);
-
-  db.users[user_id] = userHistory;
-
-  saveDB(db);
-
-  res.json({
-    reply: reply,
-    buttons: []
-  });
-});
-
 // ===== СТАРТ =====
 app.listen(PORT, () => {
   console.log("🚀 Server started on port " + PORT);
