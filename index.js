@@ -22,24 +22,17 @@ function saveDB(data) {
   fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
 }
 
+// ===== НОРМАЛИЗАЦИЯ (ОДНА!) =====
+function normalize(text) {
+  return text
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, "")
+    .trim();
+}
+
 // ===== УМНЫЙ ПОИСК =====
-function normalize(text) {
-  return text
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s]/gu, "")
-    .trim();
-}
-
-function normalize(text) {
-  return text
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s]/gu, "")
-    .trim();
-}
-
 function findAnswer(message, faq) {
   const text = normalize(message);
-  const words = text.split(" ");
 
   let bestMatch = null;
   let bestScore = 0;
@@ -74,7 +67,7 @@ async function askAI(messages) {
     const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
@@ -90,6 +83,7 @@ async function askAI(messages) {
   }
 }
 
+// ===== ГЕНЕРАЦИЯ ТЕГОВ =====
 async function generateTags(text) {
   const prompt = `
 Выдели ключевые слова (теги) из текста.
@@ -112,13 +106,6 @@ async function generateTags(text) {
     .filter(t => t.length > 2);
 }
 
-    const data = await res.json();
-    return data.choices?.[0]?.message?.content || "Ошибка AI";
-  } catch (err) {
-    return "Ошибка сервера";
-  }
-}
-
 // ===== ОБУЧЕНИЕ =====
 app.post("/api/teach", async (req, res) => {
   const { question, answer } = req.body;
@@ -131,7 +118,6 @@ app.post("/api/teach", async (req, res) => {
 
   if (!db.faq) db.faq = [];
 
-  // 🧠 генерируем теги через AI
   const tags = await generateTags(question);
 
   db.faq.push({
@@ -167,10 +153,8 @@ app.post("/api/chat", async (req, res) => {
     db.users[user_id] = [];
   }
 
-  // ➕ пользователь
   db.users[user_id].push({ role: "user", content: message });
 
-  // 🔎 сначала ищем в FAQ
   const faqReply = findAnswer(message, db.faq);
 
   if (faqReply) {
@@ -183,10 +167,7 @@ app.post("/api/chat", async (req, res) => {
     });
   }
 
-  // 🤖 если нет — идём в AI
-  const messages = db.users[user_id];
-
-  const reply = await askAI(messages);
+  const reply = await askAI(db.users[user_id]);
 
   db.users[user_id].push({ role: "assistant", content: reply });
 
@@ -198,36 +179,30 @@ app.post("/api/chat", async (req, res) => {
   });
 });
 
-// ===== ПОЛУЧИТЬ FAQ =====
+// ===== FAQ API =====
 app.get("/api/faq", (req, res) => {
   const db = loadDB();
   res.json(db.faq || []);
 });
 
-// ===== УДАЛИТЬ FAQ =====
 app.post("/api/faq/delete", (req, res) => {
   const { index } = req.body;
   const db = loadDB();
 
-  if (!db.faq) db.faq = [];
-
   db.faq.splice(index, 1);
-
   saveDB(db);
 
   res.json({ status: "ok" });
 });
 
-// ===== РЕДАКТИРОВАТЬ FAQ =====
 app.post("/api/faq/update", (req, res) => {
   const { index, question, answer } = req.body;
   const db = loadDB();
 
-  if (!db.faq) db.faq = [];
-
   db.faq[index] = {
     q: question,
-    a: answer
+    a: answer,
+    tags: db.faq[index].tags || [] // сохраняем теги
   };
 
   saveDB(db);
