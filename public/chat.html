@@ -68,7 +68,6 @@
   <button id="sendBtn">➤</button>
 </div>
 
-<!-- Supabase -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
@@ -76,7 +75,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const supabase = window.supabase.createClient(
     "https://onjcxdjricgdfetwxnmg.supabase.co",
-    "sb_publishable_bouNvhdKU7BF_9Y6_HMINg_FvVTtk4b" // вставь свой ключ
+    "sb_publishable_bouNvhdKU7BF_9Y6_HMINg_FvVTtk4b"
   );
 
   const chat = document.getElementById("chat");
@@ -97,42 +96,44 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   async function sendMessage() {
-  const text = input.value.trim();
-  if (!text) return;
+    const text = input.value.trim();
+    if (!text) return;
 
-  addMessage(text, "user");
-  input.value = "";
+    addMessage(text, "user");
+    input.value = "";
 
-  try {
-    const words = text.toLowerCase().split(" ");
+    try {
+      const words = text.toLowerCase().split(" ");
 
-    let query = supabase.from("faq").select("*");
+      const orQuery = words
+        .filter(w => w.length > 1)
+        .map(w => `question.ilike.%${w}%`)
+        .join(",");
 
-    words.forEach(word => {
-      if (word.length > 1) {
-        query = query.ilike("question", "%" + word + "%");
+      const { data, error } = await supabase
+        .from("faq")
+        .select("*")
+        .or(orQuery)
+        .limit(1);
+
+      if (error) {
+        console.error(error);
+        addMessage("Ошибка базы 😢", "bot");
+        return;
       }
-    });
 
-    const { data, error } = await query.limit(1);
+      if (data && data.length > 0) {
+        addMessage(data[0].answer, "bot");
+      } else {
+        addMessage("Не нашёл ответ 😕", "bot");
+      }
 
-    if (error) {
-      console.error(error);
-      addMessage("Ошибка базы 😢", "bot");
-      return;
+    } catch (e) {
+      console.error(e);
+      addMessage("Ошибка 😢", "bot");
     }
-
-    if (data && data.length > 0) {
-      addMessage(data[0].answer, "bot");
-    } else {
-      addMessage("Не нашёл ответ 😕", "bot");
-    }
-
-  } catch (e) {
-    console.error(e);
-    addMessage("Ошибка 😢", "bot");
   }
-}
+
   button.addEventListener("click", sendMessage);
   input.addEventListener("keypress", e => {
     if (e.key === "Enter") sendMessage();
@@ -142,4 +143,4 @@ document.addEventListener("DOMContentLoaded", () => {
 </script>
 
 </body>
-</html>
+</html>   
