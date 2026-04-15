@@ -27,7 +27,6 @@
       text-transform: uppercase;
       box-shadow: 0 2px 10px rgba(0,0,0,0.1);
       z-index: 1000;
-      font-size: 16px;
     }
 
     .chat {
@@ -129,160 +128,165 @@
       color: white;
     }
 
-    @media (max-width: 480px) {
-      .message {
-        font-size: 19px;
-      }
-
-      input {
-        font-size: 18px;
-      }
-
-      button {
-        font-size: 18px;
-      }
-    }
-
     @keyframes fadeIn {
-      from {
-        opacity: 0;
-        transform: translateY(8px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
     }
   </style>
 </head>
 
 <body>
 
-  <div class="back" onclick="goBack()">НАЗАД</div>
+<div class="back" onclick="goBack()">НАЗАД</div>
+<div class="chat" id="chat"></div>
 
-  <div class="chat" id="chat"></div>
+<div class="input-area">
+  <input id="input" placeholder="Введите сообщение..." />
+  <button onclick="send()">➤</button>
+</div>
 
-  <div class="input-area">
-    <input id="input" placeholder="Введите сообщение..." />
-    <button onclick="send()">➤</button>
-  </div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-  <script>
-    const chat = document.getElementById("chat");
+<script>
+// 🔌 SUPABASE
+const supabase = window.supabase.createClient(
+  "https://onjcxdjricgdfetwxnmg.supabase.co",
+  "sb_publishable_bouNvhdKU7BF_9Y6_HMINg_FvVTtk4b"
+);
 
-    let userId;
+const chat = document.getElementById("chat");
 
-    try {
-      userId = localStorage.getItem("user_id");
+let userId = localStorage.getItem("user_id");
+if (!userId) {
+  userId = "user_" + Math.random().toString(36).substring(2, 10);
+  localStorage.setItem("user_id", userId);
+}
 
-      if (!userId) {
-        userId = "user_" + Math.random().toString(36).substring(2, 10);
-        localStorage.setItem("user_id", userId);
-      }
-    } catch (e) {
-      userId = "user_" + Math.random().toString(36).substring(2, 10);
-    }
+// 🔙 назад
+function goBack() {
+  window.location.href = "https://taplink.cc/chikoyapp";
+}
 
-    function goBack() {
-      window.location.href = "https://taplink.cc/chikoyapp";
-    }
+// 💬 сообщение
+function addMessage(text, type, isTyping = false) {
+  const row = document.createElement("div");
+  row.className = "msg-row " + (type === "user" ? "user-row" : "");
 
-    function addMessage(text, type, isTyping = false) {
-      const row = document.createElement("div");
-      row.className = "msg-row " + (type === "user" ? "user-row" : "");
+  const avatar = document.createElement("img");
+  avatar.className = "avatar";
+  avatar.src = type === "user"
+    ? "https://i.imgur.com/6VBx3io.png"
+    : "https://i.imgur.com/4ZQZ4Zy.png";
 
-      const avatar = document.createElement("img");
-      avatar.className = "avatar";
+  if (type === "bot") avatar.classList.add("online");
 
-      avatar.src = type === "user"
-        ? "https://i.imgur.com/6VBx3io.png"
-        : "https://i.imgur.com/4ZQZ4Zy.png";
+  const div = document.createElement("div");
+  div.className = "message " + type;
 
-      if (type === "bot") {
-        avatar.classList.add("online");
-      }
+  if (isTyping) {
+    div.innerHTML = 'печатает<span class="dots"></span>';
+  } else {
+    div.innerText = text || "";
+  }
 
-      const div = document.createElement("div");
-      div.className = "message " + type;
+  if (type === "user") {
+    row.appendChild(div);
+    row.appendChild(avatar);
+  } else {
+    row.appendChild(avatar);
+    row.appendChild(div);
+  }
 
-      if (isTyping) {
-        div.innerHTML = 'печатает<span class="dots"></span>';
-      } else {
-        div.innerText = text || "";
-      }
+  chat.appendChild(row);
+  chat.scrollTo({ top: chat.scrollHeight, behavior: "smooth" });
 
-      if (type === "user") {
-        row.appendChild(div);
-        row.appendChild(avatar);
-      } else {
-        row.appendChild(avatar);
-        row.appendChild(div);
-      }
+  return row;
+}
 
-      chat.appendChild(row);
+// 🧠 УМНЫЙ ПОИСК
+async function findAnswerSmart(userText) {
+  const text = userText.toLowerCase();
 
-      chat.scrollTo({
-        top: chat.scrollHeight,
-        behavior: "smooth"
-      });
+  const { data, error } = await supabase.from('faq').select('*');
 
-      return row;
-    }
+  if (error) {
+    console.error(error);
+    return null;
+  }
 
-    async function loadHistory() {
-      try {
-        const res = await fetch("/api/history?user_id=" + userId);
-        const data = await res.json();
+  let best = null;
+  let bestScore = 0;
 
-        if (!Array.isArray(data)) return;
+  for (let item of data) {
+    let score = 0;
 
-        data.forEach(m => {
-          addMessage(m.content, m.role === "user" ? "user" : "bot");
-        });
-      } catch (e) {
-        console.log("history error", e);
-      }
-    }
+    if (text.includes(item.question.toLowerCase())) score += 3;
 
-    async function send() {
-      const input = document.getElementById("input");
-      const text = input.value;
-
-      if (!text.trim()) return;
-
-      addMessage(text, "user");
-      input.value = "";
-
-      const typing = addMessage("", "bot", true);
-
-      try {
-        const res = await fetch("/api/chat", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            message: text,
-            user_id: userId
-          })
-        });
-
-        const data = await res.json();
-
-        typing.remove();
-        addMessage(data.reply || "Ошибка", "bot");
-      } catch (e) {
-        typing.remove();
-        addMessage("Ошибка соединения", "bot");
+    if (item.tags) {
+      for (let tag of item.tags) {
+        if (text.includes(tag.toLowerCase())) score += 2;
       }
     }
 
-    document.getElementById("input").addEventListener("keypress", e => {
-      if (e.key === "Enter") send();
+    if (score > bestScore) {
+      bestScore = score;
+      best = item;
+    }
+  }
+
+  return bestScore > 0 ? best.answer : null;
+}
+
+// 🚀 ОТПРАВКА
+async function send() {
+  const input = document.getElementById("input");
+  const text = input.value;
+
+  if (!text.trim()) return;
+
+  addMessage(text, "user");
+  input.value = "";
+
+  const typing = addMessage("", "bot", true);
+
+  try {
+    // 1. ищем в базе
+    const smartReply = await findAnswerSmart(text);
+
+    typing.remove();
+
+    if (smartReply) {
+      addMessage(smartReply, "bot");
+      return;
+    }
+
+    // 2. fallback на AI
+    const res = await fetch("/api/chat", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        message: text,
+        user_id: userId
+      })
     });
 
-    loadHistory();
-  </script>
+    const data = await res.json();
+
+    addMessage(data.reply || "Я пока не знаю 🤖", "bot");
+
+  } catch (e) {
+    typing.remove();
+    addMessage("Ошибка соединения", "bot");
+  }
+}
+
+// Enter
+document.getElementById("input").addEventListener("keypress", e => {
+  if (e.key === "Enter") send();
+});
+</script>
 
 </body>
 </html>
