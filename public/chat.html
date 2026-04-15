@@ -96,19 +96,61 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   async function sendMessage() {
-  const { data, error } = await supabase
-    .from("faq")
-    .select("*");
+    const text = input.value.trim();
+    if (!text) return;
 
-  console.log("DATA:", data);
-  console.log("ERROR:", error);
+    addMessage(text, "user");
+    input.value = "";
 
-  if (error) {
-    addMessage("Ошибка базы 😢", "bot");
-  } else {
-    addMessage("Есть доступ к базе ✅", "bot");
+    try {
+      const words = text.toLowerCase().split(" ").filter(w => w.length > 1);
+
+      if (words.length === 0) {
+        addMessage("Напиши подробнее 🙏", "bot");
+        return;
+      }
+
+      // 🔍 поиск по question
+      let { data, error } = await supabase
+        .from("faq")
+        .select("*")
+        .or(words.map(w => `question.ilike.%${w}%`).join(","))
+        .limit(1);
+
+      // 🔁 если не нашли — ищем по tags
+      if (!data || data.length === 0) {
+        const { data: tagData, error: tagError } = await supabase
+          .from("faq")
+          .select("*")
+          .overlaps("tags", words)
+          .limit(1);
+
+        if (tagError) {
+          console.error(tagError);
+          addMessage("Ошибка базы 😢", "bot");
+          return;
+        }
+
+        data = tagData;
+      }
+
+      if (error) {
+        console.error(error);
+        addMessage("Ошибка базы 😢", "bot");
+        return;
+      }
+
+      if (data && data.length > 0) {
+        addMessage(data[0].answer, "bot");
+      } else {
+        addMessage("Не нашёл ответ 😕", "bot");
+      }
+
+    } catch (e) {
+      console.error(e);
+      addMessage("Ошибка 😢", "bot");
+    }
   }
-}
 
   button.addEventListener("click", sendMessage);
   input.addEventListener("keydown", e => {
