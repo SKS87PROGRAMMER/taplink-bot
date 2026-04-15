@@ -11,15 +11,15 @@
       font-family: Arial;
       background: #f5f7fb;
       color: #111;
+      font-size: 18px;
     }
 
-    /* НАЗАД */
     .back {
       position: fixed;
       top: 10px;
       left: 10px;
       right: 10px;
-      padding: 15px;
+      padding: 16px;
       background: white;
       text-align: center;
       border-radius: 14px;
@@ -27,39 +27,36 @@
       text-transform: uppercase;
       box-shadow: 0 2px 10px rgba(0,0,0,0.1);
       z-index: 1000;
+      font-size: 16px;
     }
 
-    /* ЧАТ */
     .chat {
       margin-top: 80px;
-      padding: 10px;
-      padding-bottom: 80px;
+      padding: 12px;
+      padding-bottom: 90px;
       height: calc(100vh - 80px);
       overflow-y: auto;
     }
 
-    /* строка */
     .msg-row {
       display: flex;
       align-items: flex-end;
-      margin: 10px 0;
+      margin: 12px 0;
     }
 
     .user-row {
       justify-content: flex-end;
     }
 
-    /* аватар */
     .avatar {
-      width: 36px;
-      height: 36px;
+      width: 40px;
+      height: 40px;
       border-radius: 50%;
       margin: 0 8px;
       object-fit: cover;
       position: relative;
     }
 
-    /* онлайн точка */
     .online::after {
       content: "";
       position: absolute;
@@ -72,12 +69,12 @@
       border: 2px solid white;
     }
 
-    /* сообщение */
     .message {
-      padding: 14px;
-      border-radius: 14px;
-      max-width: 70%;
-      font-size: 16px;
+      padding: 16px;
+      border-radius: 16px;
+      max-width: 75%;
+      font-size: 18px;
+      line-height: 1.5;
       animation: fadeIn 0.3s ease;
     }
 
@@ -90,12 +87,10 @@
       box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     }
 
-    /* typing dots */
     .dots::after {
       content: "";
       display: inline-block;
-      width: 20px;
-      text-align: left;
+      width: 24px;
       animation: dots 1.5s infinite;
     }
 
@@ -106,33 +101,46 @@
       100% { content: "..."; }
     }
 
-    /* ВВОД */
     .input-area {
       position: fixed;
       bottom: 0;
       left: 0;
       right: 0;
       display: flex;
-      padding: 10px;
+      padding: 12px;
       background: #f5f7fb;
     }
 
     input {
       flex: 1;
-      padding: 15px;
-      font-size: 16px;
-      border-radius: 12px;
+      padding: 16px;
+      font-size: 18px;
+      border-radius: 14px;
       border: 1px solid #ccc;
     }
 
     button {
       margin-left: 10px;
-      padding: 15px;
-      font-size: 16px;
-      border-radius: 12px;
+      padding: 16px 18px;
+      font-size: 18px;
+      border-radius: 14px;
       border: none;
       background: #4caf50;
       color: white;
+    }
+
+    @media (max-width: 480px) {
+      .message {
+        font-size: 19px;
+      }
+
+      input {
+        font-size: 18px;
+      }
+
+      button {
+        font-size: 18px;
+      }
     }
 
     @keyframes fadeIn {
@@ -190,7 +198,6 @@
         ? "https://i.imgur.com/6VBx3io.png"
         : "https://i.imgur.com/4ZQZ4Zy.png";
 
-      // 🟢 онлайн только у бота
       if (type === "bot") {
         avatar.classList.add("online");
       }
