@@ -181,3 +181,5 @@ function findAnswer(message, faq) {
 
   return null;
 }
+
+console.log("DB CONTENT:", loadDB());
