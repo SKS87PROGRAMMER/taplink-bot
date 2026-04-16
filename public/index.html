@@ -68,154 +68,86 @@
   <button id="sendBtn">➤</button>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
 <script>
-document.addEventListener("DOMContentLoaded", () => {
+const chat = document.getElementById("chat");
+const input = document.getElementById("input");
+const button = document.getElementById("sendBtn");
 
-  const supabase = window.supabase.createClient(
-    "https://onjcxdjricgdfetwxnmg.supabase.co",
-    "sb_publishable_bouNvhdKU7BF_9Y6_HMINg_FvVTtk4b"
-  );
-
-  const chat = document.getElementById("chat");
-  const input = document.getElementById("input");
-  const button = document.getElementById("sendBtn");
-
-  function addMessage(text, type) {
-    const row = document.createElement("div");
-    row.className = "msg-row " + (type === "user" ? "user-row" : "");
-
-    const div = document.createElement("div");
-    div.className = "message " + type;
-    div.innerText = text;
-
-    row.appendChild(div);
-    chat.appendChild(row);
-    chat.scrollTop = chat.scrollHeight;
+// 🔐 персональный чат (у каждого свой)
+let messages = JSON.parse(localStorage.getItem("chat_history")) || [
+  {
+    role: "system",
+    content: "Ты дружелюбный AI-помощник. Отвечай кратко и понятно на русском."
   }
+];
 
-  function normalize(text) {
-    return text
-      .toLowerCase()
-      .replace(/[^\w\sа-яё]/gi, "")
-      .split(" ")
-      .filter(w => w.length > 2);
-  }
+// 👉 отрисовка старых сообщений
+messages.forEach(msg => {
+  if (msg.role === "user") addMessage(msg.content, "user");
+  if (msg.role === "assistant") addMessage(msg.content, "bot");
+});
 
-  function scoreMatch(words, item) {
-    let score = 0;
+function addMessage(text, type) {
+  const row = document.createElement("div");
+  row.className = "msg-row " + (type === "user" ? "user-row" : "");
 
-    const question = item.question.toLowerCase();
-    const tags = (item.tags || []).join(" ").toLowerCase();
+  const div = document.createElement("div");
+  div.className = "message " + type;
+  div.innerText = text;
 
-    words.forEach(w => {
-      if (question.includes(w)) score += 3;
-      if (tags.includes(w)) score += 2;
-      if (question.split(" ").includes(w)) score += 2;
+  row.appendChild(div);
+  chat.appendChild(row);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+async function sendMessage() {
+  const text = input.value.trim();
+  if (!text) return;
+
+  addMessage(text, "user");
+
+  messages.push({ role: "user", content: text });
+  input.value = "";
+
+  const thinking = document.createElement("div");
+  thinking.className = "msg-row";
+  thinking.innerHTML = '<div class="message bot">Думаю...</div>';
+  chat.appendChild(thinking);
+
+  try {
+    const res = await fetch("/ai", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ messages })
     });
 
-    if (question.includes(words.join(" "))) score += 5;
+    const data = await res.json();
 
-    return score;
+    chat.removeChild(thinking);
+
+    const reply = data.answer;
+
+    addMessage(reply, "bot");
+
+    messages.push({ role: "assistant", content: reply });
+
+    // 💾 сохраняем чат (персонально)
+    localStorage.setItem("chat_history", JSON.stringify(messages));
+
+  } catch (e) {
+    chat.removeChild(thinking);
+    addMessage("Ошибка 😢", "bot");
+    console.error(e);
   }
+}
 
-  async function sendMessage() {
-    const text = input.value.trim();
-    if (!text) return;
+button.addEventListener("click", sendMessage);
 
-    addMessage(text, "user");
-    input.value = "";
-
-    try {
-      const words = normalize(text);
-
-      if (words.length === 0) {
-        addMessage("Напиши подробнее 🙏", "bot");
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from("faq")
-        .select("*");
-
-      if (error) {
-        console.error(error);
-        addMessage("Ошибка базы 😢", "bot");
-        return;
-      }
-
-      let best = null;
-      let bestScore = 0;
-
-      data.forEach(item => {
-        const s = scoreMatch(words, item);
-        if (s > bestScore) {
-          bestScore = s;
-          best = item;
-        }
-      });
-
-      if (best && bestScore >= 6) {
-        addMessage(best.answer, "bot");
-        return;
-      }
-
-      // 🤖 AI
-      addMessage("Думаю 🤔...", "bot");
-
-      try {
-        const res = await fetch("https://taplink-bot-production.up.railway.app/ai", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({ message: text })
-        });
-
-        if (!res.ok) throw new Error("Ошибка сервера");
-
-        const aiData = await res.json();
-        if (!aiData.answer) throw new Error("Нет ответа");
-
-        addMessage(aiData.answer, "bot");
-
-        // 💾 сохраняем вопрос
-        await supabase.from("unknown_questions").insert([{
-          text,
-          answer: aiData.answer,
-          status: "new"
-        }]);
-
-        // 🔥 проверка на дубли
-        const exists = data.find(item => item.question === text);
-
-        if (!exists) {
-          await supabase.from("faq").insert([{
-            question: text,
-            answer: aiData.answer,
-            tags: words
-          }]);
-        }
-
-      } catch (err) {
-        console.error(err);
-        addMessage("AI временно недоступен 😢", "bot");
-      }
-
-    } catch (e) {
-      console.error(e);
-      addMessage("Ошибка 😢", "bot");
-    }
-  }
-
-  button.addEventListener("click", sendMessage);
-  input.addEventListener("keydown", e => {
-    if (e.key === "Enter") sendMessage();
-  });
-
+input.addEventListener("keypress", e => {
+  if (e.key === "Enter") sendMessage();
 });
 </script>
-
 </body>
 </html>
