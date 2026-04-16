@@ -19,6 +19,8 @@ app.post("/ai", async (req, res) => {
   try {
     const { messages } = req.body;
 
+    console.log("📩 Сообщение:", messages);
+
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -33,14 +35,23 @@ app.post("/ai", async (req, res) => {
 
     const data = await response.json();
 
+    console.log("🤖 Ответ OpenAI:", data);
+
+    // ❗ если ошибка от OpenAI
+    if (data.error) {
+      return res.json({
+        answer: "Ошибка AI: " + data.error.message
+      });
+    }
+
     const answer =
-      data.choices?.[0]?.message?.content || "Ошибка ответа 😢";
+      data.choices?.[0]?.message?.content || "Пустой ответ 😢";
 
     res.json({ answer });
 
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ answer: "Ошибка AI 😢" });
+    console.error("🔥 SERVER ERROR:", err);
+    res.status(500).json({ answer: "Ошибка сервера 😢" });
   }
 });
 
