@@ -1,176 +1,127 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Чат Чикой</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Чат Чикой</title>
 
-<style>
-body {
-  margin: 0;
-  font-family: Arial;
-  display: flex;
-  height: 100vh;
-}
+ <style>
+  body { 
+    margin: 0; 
+    font-family: Arial; 
+    background: #f5f7fb;
+    font-size: 18px;
+  }
 
-/* 🧠 сайдбар */
-.sidebar {
-  width: 220px;
-  background: #111;
-  color: white;
-  padding: 10px;
-  overflow-y: auto;
-}
+  .back {
+    position: fixed; top: 10px; left: 10px; right: 10px;
+    padding: 16px; 
+    background: white; 
+    text-align: center;
+    border-radius: 12px; 
+    font-weight: bold;
+    font-size: 18px;
+    cursor: pointer;
+  }
 
-.chat-item {
-  padding: 10px;
-  border-radius: 8px;
-  cursor: pointer;
-}
+  .chat {
+    margin-top: 80px;
+    padding: 12px;
+    padding-bottom: 90px;
+    height: calc(100vh - 80px);
+    overflow-y: auto;
+  }
 
-.chat-item.active {
-  background: #333;
-}
+  .msg-row { display: flex; margin: 12px 0; }
+  .user-row { justify-content: flex-end; }
 
-/* ➕ кнопка */
-.new-chat {
-  background: #4caf50;
-  padding: 10px;
-  text-align: center;
-  border-radius: 8px;
-  margin-bottom: 10px;
-  cursor: pointer;
-}
+  .message {
+    padding: 14px;
+    border-radius: 14px;
+    max-width: 80%;
+    font-size: 17px;
+    line-height: 1.4;
+  }
 
-/* 💬 чат */
-.main {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  background: #f5f7fb;
-}
+  .user { background: #d2e3ff; }
+  .bot {
+    background: white;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  }
 
-.chat {
-  flex: 1;
-  overflow-y: auto;
-  padding: 10px;
-}
+  .input-area {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    display: flex; padding: 12px; background: #f5f7fb;
+  }
 
-.msg-row { display: flex; margin: 10px 0; }
-.user-row { justify-content: flex-end; }
+  input {
+    flex: 1; 
+    padding: 14px;
+    border-radius: 12px; 
+    border: 1px solid #ccc;
+    font-size: 16px;
+  }
 
-.message {
-  padding: 12px;
-  border-radius: 12px;
-  max-width: 70%;
-}
-
-.user { background: #d2e3ff; }
-.bot { background: white; }
-
-.input-area {
-  display: flex;
-  padding: 10px;
-}
-
-input {
-  flex: 1;
-  padding: 10px;
-}
-
-button {
-  margin-left: 5px;
-}
+  button {
+    margin-left: 8px; 
+    padding: 14px 16px;
+    border: none; 
+    border-radius: 12px;
+    background: #4caf50; 
+    color: white;
+    font-size: 16px;
+    cursor: pointer;
+  }
 </style>
 </head>
 
 <body>
 
-<div class="sidebar">
-  <div class="new-chat" onclick="createChat()">+ Новый чат</div>
-  <div id="chatList"></div>
-</div>
+<div class="back" onclick="location.href='https://taplink.cc/chikoyapp'">НАЗАД</div>
 
-<div class="main">
-  <div id="chat" class="chat"></div>
+<div id="chat" class="chat"></div>
 
-  <div class="input-area">
-    <input id="input" placeholder="Введите..." />
-    <button onclick="sendMessage()">➤</button>
-  </div>
+<div class="input-area">
+  <input id="input" placeholder="Введите сообщение..." />
+  <button id="sendBtn">➤</button>
 </div>
 
 <script>
-let chats = JSON.parse(localStorage.getItem("chats")) || {};
-let currentChat = localStorage.getItem("currentChat");
+// 🔊 звуки (плавные, без задержки)
+const sendSound = new Audio("https://actions.google.com/sounds/v1/ui/click.ogg");
+const receiveSound = new Audio("https://actions.google.com/sounds/v1/notifications/notification_simple-02.ogg");
 
-// если нет чатов → создаём первый
-if (!currentChat) {
-  currentChat = "chat_" + Date.now();
-  chats[currentChat] = [
-    { role: "system", content: "Ты дружелюбный AI." }
-  ];
-}
+sendSound.volume = 0.4;
+receiveSound.volume = 0.5;
 
-const chatEl = document.getElementById("chat");
+sendSound.preload = "auto";
+receiveSound.preload = "auto";
+
+const chat = document.getElementById("chat");
 const input = document.getElementById("input");
-const chatList = document.getElementById("chatList");
+const button = document.getElementById("sendBtn");
 
-// 🔥 сохранить
-function save() {
-  localStorage.setItem("chats", JSON.stringify(chats));
-  localStorage.setItem("currentChat", currentChat);
-}
+// 🔐 персональный чат
+let messages = JSON.parse(localStorage.getItem("chat_history")) || [
+  {
+    role: "system",
+    content: "Ты дружелюбный AI-помощник, ведёшь беседу как живой человек. Отвечай кратко и понятно на русском."
+  }
+];
 
-// 🔥 ограничение
-function limitMessages(messages) {
+// 🔥 ограничение истории
+function limitMessages() {
   const system = messages.find(m => m.role === "system");
-  const last = messages.filter(m => m.role !== "system").slice(-10);
-  return system ? [system, ...last] : last;
+  const lastMessages = messages.filter(m => m.role !== "system").slice(-10);
+  messages = system ? [system, ...lastMessages] : lastMessages;
 }
 
-// 🧠 рендер чата
-function renderChat() {
-  chatEl.innerHTML = "";
-  const messages = chats[currentChat] || [];
+// 👉 отрисовка старых сообщений
+messages.forEach(msg => {
+  if (msg.role === "user") addMessage(msg.content, "user");
+  if (msg.role === "assistant") addMessage(msg.content, "bot");
+});
 
-  messages.forEach(m => {
-    if (m.role === "user") addMessage(m.content, "user");
-    if (m.role === "assistant") addMessage(m.content, "bot");
-  });
-}
-
-// 🧾 список чатов
-function renderChats() {
-  chatList.innerHTML = "";
-
-  Object.keys(chats).forEach(id => {
-    const div = document.createElement("div");
-    div.className = "chat-item " + (id === currentChat ? "active" : "");
-    div.innerText = id;
-    div.onclick = () => {
-      currentChat = id;
-      save();
-      renderChats();
-      renderChat();
-    };
-    chatList.appendChild(div);
-  });
-}
-
-// ➕ создать чат
-function createChat() {
-  const id = "chat_" + Date.now();
-  chats[id] = [
-    { role: "system", content: "Ты дружелюбный AI." }
-  ];
-  currentChat = id;
-  save();
-  renderChats();
-  renderChat();
-}
-
-// 💬 сообщение
 function addMessage(text, type) {
   const row = document.createElement("div");
   row.className = "msg-row " + (type === "user" ? "user-row" : "");
@@ -180,45 +131,75 @@ function addMessage(text, type) {
   div.innerText = text;
 
   row.appendChild(div);
-  chatEl.appendChild(row);
-  chatEl.scrollTop = chatEl.scrollHeight;
+  chat.appendChild(row);
+
+  // плавный скролл
+  chat.scrollTo({
+    top: chat.scrollHeight,
+    behavior: "smooth"
+  });
 }
 
-// 🚀 отправка
 async function sendMessage() {
   const text = input.value.trim();
   if (!text) return;
 
   addMessage(text, "user");
 
-  let messages = chats[currentChat];
+  sendSound.currentTime = 0;
+  sendSound.play();
+
   messages.push({ role: "user", content: text });
-  messages = limitMessages(messages);
-  chats[currentChat] = messages;
+  limitMessages(); // 🔥 ограничение
 
   input.value = "";
 
-  const res = await fetch("/ai", {
-    method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({ messages })
-  });
+  const thinking = document.createElement("div");
+  thinking.className = "msg-row";
+  thinking.innerHTML = '<div class="message bot">Думаю...</div>';
+  chat.appendChild(thinking);
 
-  const data = await res.json();
+  try {
+    const res = await fetch("/ai", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ messages })
+    });
 
-  addMessage(data.answer, "bot");
+    const data = await res.json();
 
-  messages.push({ role: "assistant", content: data.answer });
-  messages = limitMessages(messages);
-  chats[currentChat] = messages;
+    chat.removeChild(thinking);
 
-  save();
+    const reply = data.answer;
+
+    addMessage(reply, "bot");
+
+    receiveSound.currentTime = 0;
+    receiveSound.play();
+
+    messages.push({ role: "assistant", content: reply });
+    limitMessages(); // 🔥 ограничение
+
+    // 💾 сохраняем
+    localStorage.setItem("chat_history", JSON.stringify(messages));
+
+  } catch (e) {
+    chat.removeChild(thinking);
+    addMessage("Ошибка 😢", "bot");
+    console.error(e);
+  }
 }
 
-// init
-renderChats();
-renderChat();
-</script>
+button.addEventListener("click", sendMessage);
 
+input.addEventListener("keypress", e => {
+  if (e.key === "Enter") sendMessage();
+});
+
+// автофокус (удобно на телефоне)
+input.focus();
+</script>
 </body>
 </html>
