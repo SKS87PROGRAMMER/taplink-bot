@@ -10,7 +10,7 @@
     margin: 0; 
     font-family: Arial; 
     background: #f5f7fb;
-    font-size: 18px; /* 🔥 увеличили базовый шрифт */
+    font-size: 18px;
   }
 
   .back {
@@ -20,7 +20,7 @@
     text-align: center;
     border-radius: 12px; 
     font-weight: bold;
-    font-size: 18px; /* 🔥 крупнее */
+    font-size: 18px;
     cursor: pointer;
   }
 
@@ -39,7 +39,7 @@
     padding: 14px;
     border-radius: 14px;
     max-width: 80%;
-    font-size: 17px; /* 🔥 основной текст */
+    font-size: 17px;
     line-height: 1.4;
   }
 
@@ -59,7 +59,7 @@
     padding: 14px;
     border-radius: 12px; 
     border: 1px solid #ccc;
-    font-size: 16px; /* 🔥 крупнее ввод */
+    font-size: 16px;
   }
 
   button {
@@ -87,20 +87,34 @@
 </div>
 
 <script>
-const sendSound = new Audio("https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg");
-const receiveSound = new Audio("https://actions.google.com/sounds/v1/notifications/message_new.ogg");
-  
+// 🔊 звуки (плавные, без задержки)
+const sendSound = new Audio("https://actions.google.com/sounds/v1/ui/click.ogg");
+const receiveSound = new Audio("https://actions.google.com/sounds/v1/notifications/notification_simple-02.ogg");
+
+sendSound.volume = 0.4;
+receiveSound.volume = 0.5;
+
+sendSound.preload = "auto";
+receiveSound.preload = "auto";
+
 const chat = document.getElementById("chat");
 const input = document.getElementById("input");
 const button = document.getElementById("sendBtn");
 
-// 🔐 персональный чат (у каждого свой)
+// 🔐 персональный чат
 let messages = JSON.parse(localStorage.getItem("chat_history")) || [
   {
     role: "system",
     content: "Ты дружелюбный AI-помощник, ведёшь беседу как живой человек. Отвечай кратко и понятно на русском."
   }
 ];
+
+// 🔥 ограничение истории
+function limitMessages() {
+  const system = messages.find(m => m.role === "system");
+  const lastMessages = messages.filter(m => m.role !== "system").slice(-10);
+  messages = system ? [system, ...lastMessages] : lastMessages;
+}
 
 // 👉 отрисовка старых сообщений
 messages.forEach(msg => {
@@ -118,7 +132,12 @@ function addMessage(text, type) {
 
   row.appendChild(div);
   chat.appendChild(row);
-  chat.scrollTop = chat.scrollHeight;
+
+  // плавный скролл
+  chat.scrollTo({
+    top: chat.scrollHeight,
+    behavior: "smooth"
+  });
 }
 
 async function sendMessage() {
@@ -126,9 +145,13 @@ async function sendMessage() {
   if (!text) return;
 
   addMessage(text, "user");
-  sendSound.play(); // 🔊 звук отправки
+
+  sendSound.currentTime = 0;
+  sendSound.play();
 
   messages.push({ role: "user", content: text });
+  limitMessages(); // 🔥 ограничение
+
   input.value = "";
 
   const thinking = document.createElement("div");
@@ -152,11 +175,14 @@ async function sendMessage() {
     const reply = data.answer;
 
     addMessage(reply, "bot");
-    receiveSound.play(); // 🔊 звук входящего
+
+    receiveSound.currentTime = 0;
+    receiveSound.play();
 
     messages.push({ role: "assistant", content: reply });
+    limitMessages(); // 🔥 ограничение
 
-    // 💾 сохраняем чат (персонально)
+    // 💾 сохраняем
     localStorage.setItem("chat_history", JSON.stringify(messages));
 
   } catch (e) {
@@ -171,6 +197,9 @@ button.addEventListener("click", sendMessage);
 input.addEventListener("keypress", e => {
   if (e.key === "Enter") sendMessage();
 });
+
+// автофокус (удобно на телефоне)
+input.focus();
 </script>
 </body>
 </html>
