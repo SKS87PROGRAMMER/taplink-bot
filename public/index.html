@@ -87,6 +87,9 @@
 </div>
 
 <script>
+const sendSound = new Audio("https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg");
+const receiveSound = new Audio("https://actions.google.com/sounds/v1/notifications/message_new.ogg");
+  
 const chat = document.getElementById("chat");
 const input = document.getElementById("input");
 const button = document.getElementById("sendBtn");
@@ -123,6 +126,7 @@ async function sendMessage() {
   if (!text) return;
 
   addMessage(text, "user");
+  sendSound.play(); // 🔊 звук отправки
 
   messages.push({ role: "user", content: text });
   input.value = "";
@@ -148,6 +152,7 @@ async function sendMessage() {
     const reply = data.answer;
 
     addMessage(reply, "bot");
+    receiveSound.play(); // 🔊 звук входящего
 
     messages.push({ role: "assistant", content: reply });
 
