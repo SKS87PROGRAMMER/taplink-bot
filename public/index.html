@@ -5,56 +5,74 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Чат Чикой</title>
 
-  <style>
-    body { margin: 0; font-family: Arial; background: #f5f7fb; }
+ <style>
+  body { 
+    margin: 0; 
+    font-family: Arial; 
+    background: #f5f7fb;
+    font-size: 18px; /* 🔥 увеличили базовый шрифт */
+  }
 
-    .back {
-      position: fixed; top: 10px; left: 10px; right: 10px;
-      padding: 14px; background: white; text-align: center;
-      border-radius: 12px; font-weight: bold;
-      cursor: pointer;
-    }
+  .back {
+    position: fixed; top: 10px; left: 10px; right: 10px;
+    padding: 16px; 
+    background: white; 
+    text-align: center;
+    border-radius: 12px; 
+    font-weight: bold;
+    font-size: 18px; /* 🔥 крупнее */
+    cursor: pointer;
+  }
 
-    .chat {
-      margin-top: 70px;
-      padding: 10px;
-      padding-bottom: 80px;
-      height: calc(100vh - 70px);
-      overflow-y: auto;
-    }
+  .chat {
+    margin-top: 80px;
+    padding: 12px;
+    padding-bottom: 90px;
+    height: calc(100vh - 80px);
+    overflow-y: auto;
+  }
 
-    .msg-row { display: flex; margin: 10px 0; }
-    .user-row { justify-content: flex-end; }
+  .msg-row { display: flex; margin: 12px 0; }
+  .user-row { justify-content: flex-end; }
 
-    .message {
-      padding: 12px;
-      border-radius: 12px;
-      max-width: 70%;
-    }
+  .message {
+    padding: 14px;
+    border-radius: 14px;
+    max-width: 80%;
+    font-size: 17px; /* 🔥 основной текст */
+    line-height: 1.4;
+  }
 
-    .user { background: #d2e3ff; }
-    .bot {
-      background: white;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-    }
+  .user { background: #d2e3ff; }
+  .bot {
+    background: white;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  }
 
-    .input-area {
-      position: fixed; bottom: 0; left: 0; right: 0;
-      display: flex; padding: 10px; background: #f5f7fb;
-    }
+  .input-area {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    display: flex; padding: 12px; background: #f5f7fb;
+  }
 
-    input {
-      flex: 1; padding: 12px;
-      border-radius: 10px; border: 1px solid #ccc;
-    }
+  input {
+    flex: 1; 
+    padding: 14px;
+    border-radius: 12px; 
+    border: 1px solid #ccc;
+    font-size: 16px; /* 🔥 крупнее ввод */
+  }
 
-    button {
-      margin-left: 8px; padding: 12px;
-      border: none; border-radius: 10px;
-      background: #4caf50; color: white;
-      cursor: pointer;
-    }
-  </style>
+  button {
+    margin-left: 8px; 
+    padding: 14px 16px;
+    border: none; 
+    border-radius: 12px;
+    background: #4caf50; 
+    color: white;
+    font-size: 16px;
+    cursor: pointer;
+  }
+</style>
 </head>
 
 <body>
